@@ -215,12 +215,22 @@ if __name__ == "__main__":
 		e0 = footsteps[N-1][0]-g[0] 
 		e1 = footsteps[N-1][1]-g[1] 
 		e2 = footsteps[N-1][2]-g[2] 
-		Q = [[10,0,0],[0,10,0],[0,0,10]]
+		Q = [[300,0,0],[0,300,0],[0,0,300]]
 
 		term_cost = (e0)*(e0)*Q[0][0] + (e0)*(e1)*Q[1][0] + (e2)*(e0)*Q[2][0] + (e0)*(e1)*Q[0][1]\
 			+(e1)*(e1)*Q[1][1]+(e2)*(e1)*Q[1][2]+(e0)*(e2)*Q[2][0]+(e1)*(e2)*Q[2][1]+(e2)*(e2)*Q[2][2]
 
-		m.setObjective(term_cost
+		# Calculate incremental costs
+		R = [[1,0,0],[0,1,0],[0,0,1]]
+		inc_cost = quicksum((footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][0]-footsteps[j-1][0])*R[0][0] + (footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][1]-footsteps[j-1][1])*R[1][0]\
+			+(footsteps[j][2]-footsteps[j-1][2])*(footsteps[j][0]-footsteps[j-1][0])*R[2][0] + (footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][1]-footsteps[j-1][1])*R[0][1]\
+			+(footsteps[j][1]-footsteps[j-1][1])*(footsteps[j][1]-footsteps[j-1][1])*R[1][1] + (footsteps[j][2]-footsteps[j-1][2])*(footsteps[j][1]-footsteps[j-1][1])*R[1][2]\
+			+(footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][2]-footsteps[j-1][2])*R[2][0] + (footsteps[j][1]-footsteps[j-1][1])*(footsteps[j][2]-footsteps[j-1][2])*R[2][1]\
+			+(footsteps[j][2]-footsteps[j-1][2])*(footsteps[j][2]-footsteps[j-1][2])*R[2][2] for j in range(0,N))
+
+		#inc_cost = quicksum((footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][0]-footsteps[j-1][0])*R[0][0] for j in range(0,N))
+
+		m.setObjective(term_cost + inc_cost
 				\
 				, GRB.MINIMIZE )
 
@@ -258,19 +268,29 @@ if __name__ == "__main__":
 		fig = plt.figure()
 		ax1 = fig.add_subplot(1,1,1)
 		ax1.set(xlim=(-1,2.5), ylim=(-1,2.5))
+
+		# Plot initial foot stance
+		ax1.plot(footsteps_x[0],footsteps_y[0], 'bo')
+		ax1.plot(footsteps_x[1],footsteps_y[1], 'r*')
+		ax1.arrow(footsteps_x[0],footsteps_y[0],0.25*math.cos(footsteps_theta[0]),0.25*math.sin(footsteps_theta[0]))
+		ax1.arrow(footsteps_x[1],footsteps_y[1],0.25*math.cos(footsteps_theta[1]),0.25*math.sin(footsteps_theta[1]))
+
+		# Plot safe region
+		rect = patches.Rectangle((0,0),3,3,linewidth=1, edgecolor='b',facecolor='blue', alpha=0.4)
+		ax1.add_patch(rect)
 		def animate(i):
-			if (i % 2 == 0) & (i < len(footsteps_x)):
+			if (i % 2 == 0) & (i < len(footsteps_x)-2):
 				# It is a left footstep
-				cur_x = footsteps_x[i]
-				cur_y = footsteps_y[i]
-				cur_theta = footsteps_theta[i]
+				cur_x = footsteps_x[i+2]
+				cur_y = footsteps_y[i+2]
+				cur_theta = footsteps_theta[i+2]
 				print(cur_theta)
 				bl = [-0.05, -0.125]
 				bl_x = math.cos(cur_theta)*bl[0] - math.sin(cur_theta)*bl[1] + cur_x
 				bl_y = math.sin(cur_theta)*bl[0] + math.cos(cur_theta)*bl[1] + cur_y
 				#bl_x = cur_x
 				#bl_y = cur_y
-				ax1.plot(footsteps_x[i],footsteps_y[i],'bo')
+				ax1.plot(cur_x,cur_y,'bo')
 				#rect = patches.Rectangle((bl_x,bl_y),0.1,0.25,math.degrees(cur_theta),linewidth=1, edgecolor='r',facecolor='none')
 				#ax1.add_patch(rect)
 				ax1.arrow(cur_x,cur_y,0.25*math.cos(cur_theta),0.25*math.sin(cur_theta))
@@ -288,16 +308,16 @@ if __name__ == "__main__":
 				# ax1.add_patch(circ1)
 				# ax1.add_patch(circ2)
 				
-			elif (i % 2 != 0) & (i < len(footsteps_x)):
-				cur_x = footsteps_x[i]
-				cur_y = footsteps_y[i]
-				cur_theta = footsteps_theta[i]
+			elif (i % 2 != 0) & (i < len(footsteps_x)-2):
+				cur_x = footsteps_x[i+2]
+				cur_y = footsteps_y[i+2]
+				cur_theta = footsteps_theta[i+2]
 				print(cur_theta)
 				bl = [-0.05, -0.125]
 				bl_x = math.cos(cur_theta)*bl[0] - math.sin(cur_theta)*bl[1] + cur_x
 				bl_y = math.sin(cur_theta)*bl[0] + math.cos(cur_theta)*bl[1] + cur_y
 				# It is a right footstep
-				ax1.plot(footsteps_x[i],footsteps_y[i],'r*')
+				ax1.plot(cur_x,cur_y,'r*')
 				#rect = patches.Rectangle((bl_x,bl_y),0.1,0.25,math.degrees(cur_theta),linewidth=1, edgecolor='r',facecolor='none')
 				#ax1.add_patch(rect)
 				ax1.arrow(cur_x,cur_y,0.25*math.cos(cur_theta),0.25*math.sin(cur_theta))
