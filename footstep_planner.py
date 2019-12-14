@@ -11,32 +11,86 @@ if __name__ == "__main__":
 
 		# Create variables
 		# Create N footstep variables (x,y,theta,s,c)
-		N = 10
+		N = 6
 		footsteps = [m.addVars(5,lb=-5,name="F"+str(i)) for i in range(0,N)]
 
 		# Trig approx functions
 		S = [m.addVars(5,vtype=GRB.BINARY, name="S"+str(i)) for i in range(0,N)]
 		C = [m.addVars(5,vtype=GRB.BINARY, name="C"+str(i)) for i in range(0,N)]
 
+		# Safe Regions
+		N_REG = 5
+		H = [m.addVars(N_REG,vtype=GRB.BINARY, name="H"+str(i)) for i in range(0,N)]
+
 		# Set constraints
 
-		# DEFINE REGION 1
-		bound1 = 3
+		# DEFINE REGIONS
+		R1_xmax = 1
+		R1_xmin = 0
+		R1_ymax = 1
+		R1_ymin = 0
+
+		R2_xmax = 1.7
+		R2_xmin = 1
+		R2_ymax = 1.5
+		R2_ymin = 0
+
+		R3_xmax = 2.5
+		R3_xmin = 1.75
+		R3_ymax = 3
+		R3_ymin = 0
+
+		R4_xmax = 1.7
+		R4_xmin = 0
+		R4_ymax = 3.5
+		R4_ymin = 2.5
+
+		R5_xmax = -0.05
+		R5_xmin = -1
+		R5_ymax = 1
+		R5_ymin = 0
+
 		A_1 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
-		b_1 = [3,0,3,0,math.pi,math.pi/2]
+		b_1 = [R1_xmax,-R1_xmin,R1_ymax,-R1_ymin,math.pi,math.pi/2]
 		print(A_1[1][2])
-		# All footsteps must be in region 1
+		
+		A_2 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
+		b_2 = [R2_xmax,-R2_xmin,R2_ymax,-R2_ymin,math.pi,math.pi/2]
+		
+		A_3 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
+		b_3 = [R3_xmax,-R3_xmin,R3_ymax,-R3_ymin,math.pi,math.pi/2]
+
+		A_4 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
+		b_4 = [R4_xmax,-R4_xmin,R4_ymax,-R4_ymin,math.pi,math.pi/2]
+
+		A_5 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
+		b_5 = [R5_xmax,-R5_xmin,R5_ymax,-R5_ymin,math.pi,math.pi/2]
+
+		# All footsteps must be in the regions
 		for c in range(0,N):
 			for i in range(0,len(A_1)):
-				m.addConstr(quicksum(A_1[i][j]*footsteps[c][j] for j in range(0,3)) <= b_1[i])
+				M = 1000
+				# Region 1
+				m.addConstr(-M*(1-H[c][0]) + quicksum(A_1[i][j]*footsteps[c][j] for j in range(0,3)) - b_1[i] <= 0)
+				# Region 2
+				m.addConstr(-M*(1-H[c][1]) + quicksum(A_2[i][j]*footsteps[c][j] for j in range(0,3)) - b_2[i] <= 0)
+				# Region 3
+				m.addConstr(-M*(1-H[c][2]) + quicksum(A_3[i][j]*footsteps[c][j] for j in range(0,3)) - b_3[i] <= 0)
+				# Region 4
+				m.addConstr(-M*(1-H[c][3]) + quicksum(A_4[i][j]*footsteps[c][j] for j in range(0,3)) - b_4[i] <= 0)
+				# Region 5
+				m.addConstr(-M*(1-H[c][4]) + quicksum(A_5[i][j]*footsteps[c][j] for j in range(0,3)) - b_5[i] <= 0)
+
+			# Constraint that the sum of H must be 1 for every foothold
+			m.addConstr(quicksum(H[c][j] for j in range(0,N_REG)) == 1 )
 
 		#Reachability constraint
 		for c in range(2,N):
 			# if odd after f1,f2 (fixed), so f3, f5, f7, ...
 			# Let's say odd is finding a step for right leg
 			if (c % 2 != 0):
-				p1 = [0,0.2]
-				p2 = [0,-0.6]
+				p1 = [0,0.1]
+				p2 = [0,-0.8]
 				d1 = 0.55
 				d2 = 0.55
 				xn = footsteps[c][0]
@@ -58,8 +112,8 @@ if __name__ == "__main__":
 			else:
 				# finding step for left leg
 				print("OTHER LEG")
-				p1 = [0, -0.2]
-				p2 = [0,0.6]
+				p1 = [0, -0.1]
+				p2 = [0,0.8]
 				d1 = 0.55
 				d2 = 0.55
 				xn = footsteps[c][0]
@@ -204,14 +258,34 @@ if __name__ == "__main__":
 		m.addConstr(S[1][2] == 1)
 		m.addConstr(C[1][2] == 1)
 
+		# Require that the footstep at 5 visits 1,1
+		# m.addConstr(footsteps[5][0] == 0)
+		# m.addConstr(footsteps[5][1] == 0.1)
+		# m.addConstr(footsteps[5][2] == init_theta)
+		# m.addConstr(footsteps[5][3] == f1_s)
+		# m.addConstr(footsteps[5][4] == f1_c)
+
 		# Add constraint of how much can turn foot in one step
 		for c in range(1,N):
 			del_theta_max = math.pi/8
 			m.addConstr((footsteps[c][2] - footsteps[c-1][2]) <= del_theta_max)
 			m.addConstr( (footsteps[c][2] - footsteps[c-1][2]) >= -del_theta_max)
 
+		###############################
+		########### LTL ###############
+		###############################
+		# Need to visit region 3 atleast once
+		m.addConstr(quicksum(H[j][1] for j in range(0,6)) >= 2)
+		# Need to visit region 5 atleast once after n footsteps
+		#m.addConstr(quicksum(H[j][4] for j in range(4,N)) >= 1)
+
+		#If in region 2, eventually will be in region 4
+		# for c in range(0,N):
+		# 	M = 1000
+		# 	m.addConstr( M*(1-H[c][1]) + quicksum(H[j][3] for j in range(c,N)) >= 1 )
+
 		# Set objective
-		g = [1,0,math.pi]
+		g = [1,3,math.pi]
 		e0 = footsteps[N-1][0]-g[0] 
 		e1 = footsteps[N-1][1]-g[1] 
 		e2 = footsteps[N-1][2]-g[2] 
@@ -229,7 +303,7 @@ if __name__ == "__main__":
 			+(footsteps[j][2]-footsteps[j-1][2])*(footsteps[j][2]-footsteps[j-1][2])*R[2][2] for j in range(0,N))
 
 		#inc_cost = quicksum((footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][0]-footsteps[j-1][0])*R[0][0] for j in range(0,N))
-
+		#inc_cost = 0
 		m.setObjective(term_cost + inc_cost
 				\
 				, GRB.MINIMIZE )
@@ -267,7 +341,7 @@ if __name__ == "__main__":
 
 		fig = plt.figure()
 		ax1 = fig.add_subplot(1,1,1)
-		ax1.set(xlim=(-1,2.5), ylim=(-1,2.5))
+		ax1.set(xlim=(-1,4), ylim=(-1,4))
 
 		# Plot initial foot stance
 		ax1.plot(footsteps_x[0],footsteps_y[0], 'bo')
@@ -275,9 +349,22 @@ if __name__ == "__main__":
 		ax1.arrow(footsteps_x[0],footsteps_y[0],0.25*math.cos(footsteps_theta[0]),0.25*math.sin(footsteps_theta[0]))
 		ax1.arrow(footsteps_x[1],footsteps_y[1],0.25*math.cos(footsteps_theta[1]),0.25*math.sin(footsteps_theta[1]))
 
-		# Plot safe region
-		rect = patches.Rectangle((0,0),3,3,linewidth=1, edgecolor='b',facecolor='blue', alpha=0.4)
+		# Plot safe region 1
+		rect = patches.Rectangle((R1_xmin,R1_ymin),R1_xmax-R1_xmin,R1_ymax-R1_ymin,linewidth=1, edgecolor='b',facecolor='green', alpha=0.4)
 		ax1.add_patch(rect)
+		# Plot safe region 2
+		rect = patches.Rectangle((R2_xmin,R2_ymin),R2_xmax-R2_xmin,R2_ymax-R2_ymin,linewidth=1, edgecolor='b',facecolor='green', alpha=0.4)
+		ax1.add_patch(rect)
+		# Plot safe region 3
+		rect = patches.Rectangle((R3_xmin,R3_ymin),R3_xmax-R3_xmin,R3_ymax-R3_ymin,linewidth=1, edgecolor='b',facecolor='green', alpha=0.4)
+		ax1.add_patch(rect)
+		# Plot safe region 4
+		rect = patches.Rectangle((R4_xmin,R4_ymin),R4_xmax-R4_xmin,R4_ymax-R4_ymin,linewidth=1, edgecolor='b',facecolor='green', alpha=0.4)
+		ax1.add_patch(rect)
+		# Plot safe region 5
+		rect = patches.Rectangle((R5_xmin,R5_ymin),R5_xmax-R5_xmin,R5_ymax-R5_ymin,linewidth=1, edgecolor='b',facecolor='green', alpha=0.4)
+		ax1.add_patch(rect)
+
 		def animate(i):
 			if (i % 2 == 0) & (i < len(footsteps_x)-2):
 				# It is a left footstep
@@ -295,16 +382,16 @@ if __name__ == "__main__":
 				#ax1.add_patch(rect)
 				ax1.arrow(cur_x,cur_y,0.25*math.cos(cur_theta),0.25*math.sin(cur_theta))
 
-				p1 = [0,0.2]
-				p2 = [0,-0.6]
+				p1 = [0,0.1]
+				p2 = [0,-0.8]
 				center_x1 = cur_x + p1[0]*math.cos(cur_theta) - p1[1]*math.sin(cur_theta)
 				center_y1 = cur_y + p1[0]*math.sin(cur_theta) + p1[1]*math.cos(cur_theta)
 
 				center_x2 = cur_x + p2[0]*math.cos(cur_theta) - p2[1]*math.sin(cur_theta)
 				center_y2 = cur_y + p2[0]*math.sin(cur_theta) + p2[1]*math.cos(cur_theta)
 
-				#circ1 = patches.Circle((center_x1,center_y1),0.55,linewidth=1, edgecolor='r',facecolor='none')
-				#circ2 = patches.Circle((center_x2,center_y2),0.55,linewidth=1, edgecolor='r',facecolor='none')
+				# circ1 = patches.Circle((center_x1,center_y1),0.55,linewidth=1, edgecolor='r',facecolor='none')
+				# circ2 = patches.Circle((center_x2,center_y2),0.55,linewidth=1, edgecolor='r',facecolor='none')
 				# ax1.add_patch(circ1)
 				# ax1.add_patch(circ2)
 				
@@ -321,19 +408,18 @@ if __name__ == "__main__":
 				#rect = patches.Rectangle((bl_x,bl_y),0.1,0.25,math.degrees(cur_theta),linewidth=1, edgecolor='r',facecolor='none')
 				#ax1.add_patch(rect)
 				ax1.arrow(cur_x,cur_y,0.25*math.cos(cur_theta),0.25*math.sin(cur_theta))
-				p1 = [0,-0.2]
-				p2 = [0,0.6]
+				p1 = [0,-0.1]
+				p2 = [0,0.8]
 				center_x1 = cur_x + p1[0]*math.cos(cur_theta) - p1[1]*math.sin(cur_theta)
 				center_y1 = cur_y + p1[0]*math.sin(cur_theta) + p1[1]*math.cos(cur_theta)
 
 				center_x2 = cur_x + p2[0]*math.cos(cur_theta) - p2[1]*math.sin(cur_theta)
 				center_y2 = cur_y + p2[0]*math.sin(cur_theta) + p2[1]*math.cos(cur_theta)
 
-				#circ1 = patches.Circle((center_x1,center_y1),0.55,linewidth=1, edgecolor='b',facecolor='none')
-				#circ2 = patches.Circle((center_x2,center_y2),0.55,linewidth=1, edgecolor='b',facecolor='none')
+				# circ1 = patches.Circle((center_x1,center_y1),0.55,linewidth=1, edgecolor='b',facecolor='none')
+				# circ2 = patches.Circle((center_x2,center_y2),0.55,linewidth=1, edgecolor='b',facecolor='none')
 				# ax1.add_patch(circ1)
 				# ax1.add_patch(circ2)
-
 		ani = animation.FuncAnimation(fig, animate, interval=1000)
 		plt.show()
 
