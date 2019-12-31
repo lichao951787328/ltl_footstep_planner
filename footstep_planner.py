@@ -3,6 +3,13 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as patches
+from matplotlib.legend_handler import HandlerPatch
+
+def make_legend_arrow(legend, orig_handle,
+                      xdescent, ydescent,
+                      width, height, fontsize):
+    p = patches.FancyArrow(0, 0.5*height, width, 0, length_includes_head=True, head_width=0.75*height )
+    return p
 
 if __name__ == "__main__":
 	try:
@@ -11,7 +18,7 @@ if __name__ == "__main__":
 
 		# Create variables
 		# Create N footstep variables (x,y,theta,s,c)
-		N = 6
+		N = 10
 		footsteps = [m.addVars(5,lb=-5,name="F"+str(i)) for i in range(0,N)]
 
 		# Trig approx functions
@@ -29,26 +36,47 @@ if __name__ == "__main__":
 		R1_xmin = 0
 		R1_ymax = 1
 		R1_ymin = 0
+		R1_midpt = [(R1_xmax + R1_xmin)/2 , (R1_ymax + R1_ymin)/2]
 
-		R2_xmax = 1.7
-		R2_xmin = 1
-		R2_ymax = 1.5
+		R2_xmax = -0.05
+		R2_xmin = -1
+		R2_ymax = 1
 		R2_ymin = 0
+		R2_midpt = [(R2_xmax + R2_xmin)/2 , (R2_ymax + R2_ymin)/2]
 
-		R3_xmax = 2.5
-		R3_xmin = 1.75
-		R3_ymax = 3
-		R3_ymin = 0
+		R3_xmax = -1.1
+		R3_xmin = -1.6
+		R3_ymax = 2
+		R3_ymin = 1.1
+		R3_midpt = [(R3_xmax + R3_xmin)/2 , (R3_ymax + R3_ymin)/2]
 
-		R4_xmax = 1.7
-		R4_xmin = 0
-		R4_ymax = 3.5
-		R4_ymin = 2.5
+		R4_xmax = 2
+		R4_xmin = 1.1
+		R4_ymax = 1.5
+		R4_ymin = 0
+		R4_midpt = [(R4_xmax + R4_xmin)/2 , (R4_ymax + R4_ymin)/2]
 
-		R5_xmax = -0.05
-		R5_xmin = -1
-		R5_ymax = 1
-		R5_ymin = 0
+		R5_xmax = 2.5
+		R5_xmin = 2
+		R5_ymax = 2
+		R5_ymin = 1.6
+		R5_midpt = [(R5_xmax + R5_xmin)/2 , (R5_ymax + R5_ymin)/2]
+
+		# R6_xmax = 0
+		# R6_xmin = -1
+		# R6_ymax = 4
+		# R6_ymin = 3.1
+
+		# R7_xmax = 2.5
+		# R7_xmin = 1
+		# R7_ymax = 3.5
+		# R7_ymin = 2.6
+
+		# R8_xmax = 2.5
+		# R8_xmin = 2
+		# R8_ymax = 2.6
+		# R8_ymin = 1.5
+
 
 		A_1 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
 		b_1 = [R1_xmax,-R1_xmin,R1_ymax,-R1_ymin,math.pi,math.pi/2]
@@ -66,6 +94,15 @@ if __name__ == "__main__":
 		A_5 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
 		b_5 = [R5_xmax,-R5_xmin,R5_ymax,-R5_ymin,math.pi,math.pi/2]
 
+		# A_6 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
+		# b_6 = [R6_xmax,-R6_xmin,R6_ymax,-R6_ymin,math.pi,math.pi/2]
+
+		# A_7 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
+		# b_7 = [R7_xmax,-R7_xmin,R7_ymax,-R7_ymin,math.pi,math.pi/2]
+
+		# A_8 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
+		# b_8 = [R8_xmax,-R8_xmin,R8_ymax,-R8_ymin,math.pi,math.pi/2]
+
 		# All footsteps must be in the regions
 		for c in range(0,N):
 			for i in range(0,len(A_1)):
@@ -80,6 +117,12 @@ if __name__ == "__main__":
 				m.addConstr(-M*(1-H[c][3]) + quicksum(A_4[i][j]*footsteps[c][j] for j in range(0,3)) - b_4[i] <= 0)
 				# Region 5
 				m.addConstr(-M*(1-H[c][4]) + quicksum(A_5[i][j]*footsteps[c][j] for j in range(0,3)) - b_5[i] <= 0)
+				# # Region 6
+				# m.addConstr(-M*(1-H[c][5]) + quicksum(A_6[i][j]*footsteps[c][j] for j in range(0,3)) - b_6[i] <= 0)
+				# # Region 7
+				# m.addConstr(-M*(1-H[c][6]) + quicksum(A_7[i][j]*footsteps[c][j] for j in range(0,3)) - b_7[i] <= 0)
+				# # Region 8
+				# m.addConstr(-M*(1-H[c][7]) + quicksum(A_8[i][j]*footsteps[c][j] for j in range(0,3)) - b_8[i] <= 0)
 
 			# Constraint that the sum of H must be 1 for every foothold
 			m.addConstr(quicksum(H[c][j] for j in range(0,N_REG)) == 1 )
@@ -271,13 +314,35 @@ if __name__ == "__main__":
 			m.addConstr((footsteps[c][2] - footsteps[c-1][2]) <= del_theta_max)
 			m.addConstr( (footsteps[c][2] - footsteps[c-1][2]) >= -del_theta_max)
 
+		#########################################################
+		####################### SPECS ###########################
+		#########################################################
+
+		# SCENARIO 1
+		# Visit region 3 atleast once
+		m.addConstr(quicksum(H[j][2] for j in range(0,N)) >= 1)
+		#m.addConstr(quicksum(H[j][4] for j in range(0,N)) >= 1)
+		#m.addConstr(quicksum(H[j][3] for j in range(0,N)) >= 1)
+		# Vist region 5 atleast once after n footsteps
+		#m.addConstr(quicksum(H[j][4] for j in range(0,N)) >= 1)
+		# if you visit region 4, then have to visit 3 in next 4 steps
+		# M = 1000
+		# m.addConstr(M*(1-H[j][3]) + quicksum(H[j][2] for j in range(0,N)) >= 1)
+
+		# for c in range(0,N):
+		# 	M = 1000
+		# 	m.addConstr( M*(1-H[c][3]) + quicksum(H[j][2] for j in range(c,c+4)) >= 1 )
+
+		# SCENARIO 2
+		# If in region 3, eventually will be in region 4
+
 		###############################
 		########### LTL ###############
 		###############################
 		# Need to visit region 3 atleast once
-		m.addConstr(quicksum(H[j][1] for j in range(0,6)) >= 2)
+		# m.addConstr(quicksum(H[j][1] for j in range(0,6)) >= 2)
 		# Need to visit region 5 atleast once after n footsteps
-		#m.addConstr(quicksum(H[j][4] for j in range(4,N)) >= 1)
+		#m.addConstr(quicksum(H[j][4] for j in range(2,N)) >= 1)
 
 		#If in region 2, eventually will be in region 4
 		# for c in range(0,N):
@@ -285,7 +350,7 @@ if __name__ == "__main__":
 		# 	m.addConstr( M*(1-H[c][1]) + quicksum(H[j][3] for j in range(c,N)) >= 1 )
 
 		# Set objective
-		g = [1,3,math.pi]
+		g = [2.2,1.8,math.pi/2]
 		e0 = footsteps[N-1][0]-g[0] 
 		e1 = footsteps[N-1][1]-g[1] 
 		e2 = footsteps[N-1][2]-g[2] 
@@ -304,7 +369,7 @@ if __name__ == "__main__":
 
 		#inc_cost = quicksum((footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][0]-footsteps[j-1][0])*R[0][0] for j in range(0,N))
 		#inc_cost = 0
-		m.setObjective(term_cost + inc_cost
+		m.setObjective( inc_cost
 				\
 				, GRB.MINIMIZE )
 
@@ -341,7 +406,7 @@ if __name__ == "__main__":
 
 		fig = plt.figure()
 		ax1 = fig.add_subplot(1,1,1)
-		ax1.set(xlim=(-1,4), ylim=(-1,4))
+		ax1.set(xlim=(-2,5), ylim=(-2,5))
 
 		# Plot initial foot stance
 		ax1.plot(footsteps_x[0],footsteps_y[0], 'bo')
@@ -364,6 +429,15 @@ if __name__ == "__main__":
 		# Plot safe region 5
 		rect = patches.Rectangle((R5_xmin,R5_ymin),R5_xmax-R5_xmin,R5_ymax-R5_ymin,linewidth=1, edgecolor='b',facecolor='green', alpha=0.4)
 		ax1.add_patch(rect)
+		# # Plot safe region 6
+		# rect = patches.Rectangle((R6_xmin,R6_ymin),R6_xmax-R6_xmin,R6_ymax-R6_ymin,linewidth=1, edgecolor='b',facecolor='green', alpha=0.4)
+		# ax1.add_patch(rect)
+		# # Plot safe region 7
+		# rect = patches.Rectangle((R7_xmin,R7_ymin),R7_xmax-R7_xmin,R7_ymax-R7_ymin,linewidth=1, edgecolor='b',facecolor='green', alpha=0.4)
+		# ax1.add_patch(rect)
+		# # Plot safe region 8
+		# rect = patches.Rectangle((R8_xmin,R8_ymin),R8_xmax-R8_xmin,R8_ymax-R8_ymin,linewidth=1, edgecolor='b',facecolor='green', alpha=0.4)
+		# ax1.add_patch(rect)
 
 		def animate(i):
 			if (i % 2 == 0) & (i < len(footsteps_x)-2):
@@ -407,7 +481,7 @@ if __name__ == "__main__":
 				ax1.plot(cur_x,cur_y,'r*')
 				#rect = patches.Rectangle((bl_x,bl_y),0.1,0.25,math.degrees(cur_theta),linewidth=1, edgecolor='r',facecolor='none')
 				#ax1.add_patch(rect)
-				ax1.arrow(cur_x,cur_y,0.25*math.cos(cur_theta),0.25*math.sin(cur_theta))
+				arrow = ax1.arrow(cur_x,cur_y,0.25*math.cos(cur_theta),0.25*math.sin(cur_theta))
 				p1 = [0,-0.1]
 				p2 = [0,0.8]
 				center_x1 = cur_x + p1[0]*math.cos(cur_theta) - p1[1]*math.sin(cur_theta)
@@ -416,11 +490,22 @@ if __name__ == "__main__":
 				center_x2 = cur_x + p2[0]*math.cos(cur_theta) - p2[1]*math.sin(cur_theta)
 				center_y2 = cur_y + p2[0]*math.sin(cur_theta) + p2[1]*math.cos(cur_theta)
 
+			 #ax1.legend([arrow], ['My label'], handler_map={patches.FancyArrow : HandlerPatch(patch_func=make_legend_arrow),
+    #                 })
+
 				# circ1 = patches.Circle((center_x1,center_y1),0.55,linewidth=1, edgecolor='b',facecolor='none')
 				# circ2 = patches.Circle((center_x2,center_y2),0.55,linewidth=1, edgecolor='b',facecolor='none')
 				# ax1.add_patch(circ1)
 				# ax1.add_patch(circ2)
 		ani = animation.FuncAnimation(fig, animate, interval=1000)
+		ax1.legend(["Right foot", "Left foot"])
+		offset = 0.1
+		ax1.text(R1_midpt[0]-offset,R1_midpt[1]-offset,"R1")
+		ax1.text(R2_midpt[0]-offset,R2_midpt[1]-offset,"R2")
+		ax1.text(R3_midpt[0]-offset,R3_midpt[1]-offset,"R3")
+		ax1.text(R4_midpt[0]-offset,R4_midpt[1]-offset,"R4")
+		ax1.text(R5_midpt[0]-offset,R5_midpt[1]-offset,"R5")
+
 		plt.show()
 
 
