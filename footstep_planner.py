@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
 		# Create variables
 		# Create N footstep variables (x,y,theta,s,c)
-		N = 10
+		N = 18
 		footsteps = [m.addVars(5,lb=-5,name="F"+str(i)) for i in range(0,N)]
 
 		# Trig approx functions
@@ -32,34 +32,66 @@ if __name__ == "__main__":
 		# Set constraints
 
 		# DEFINE REGIONS
+		## SCENARIO 1
+		# R1_xmax = 1
+		# R1_xmin = 0
+		# R1_ymax = 1
+		# R1_ymin = 0
+		# R1_midpt = [(R1_xmax + R1_xmin)/2 , (R1_ymax + R1_ymin)/2]
+
+		# R2_xmax = 1.6
+		# R2_xmin = 1.1
+		# R2_ymax = 0.85
+		# R2_ymin = -0.5
+		# R2_midpt = [(R2_xmax + R2_xmin)/2 , (R2_ymax + R2_ymin)/2]
+
+		# R3_xmax = 2.2
+		# R3_xmin = 1.65
+		# R3_ymax = 1.8
+		# R3_ymin = 0
+		# R3_midpt = [(R3_xmax + R3_xmin)/2 , (R3_ymax + R3_ymin)/2]
+
+		# R4_xmax = 2.35
+		# R4_xmin = 1.2
+		# R4_ymax = 2.5
+		# R4_ymin = 1.85
+		# R4_midpt = [(R4_xmax + R4_xmin)/2 , (R4_ymax + R4_ymin)/2]
+
+		# R5_xmax = 1
+		# R5_xmin = -0.5
+		# R5_ymax = 2
+		# R5_ymin = 1.1
+		# R5_midpt = [(R5_xmax + R5_xmin)/2 , (R5_ymax + R5_ymin)/2]
+
+		## SCENARIO 2
 		R1_xmax = 1
 		R1_xmin = 0
 		R1_ymax = 1
 		R1_ymin = 0
 		R1_midpt = [(R1_xmax + R1_xmin)/2 , (R1_ymax + R1_ymin)/2]
 
-		R2_xmax = -0.05
-		R2_xmin = -1
-		R2_ymax = 1
+		R2_xmax = 1.6
+		R2_xmin = 1.1
+		R2_ymax = 2
 		R2_ymin = 0
 		R2_midpt = [(R2_xmax + R2_xmin)/2 , (R2_ymax + R2_ymin)/2]
 
-		R3_xmax = -1.1
-		R3_xmin = -1.6
-		R3_ymax = 2
-		R3_ymin = 1.1
+		R3_xmax = 2
+		R3_xmin = 1.1
+		R3_ymax = 2.5
+		R3_ymin = 2.1
 		R3_midpt = [(R3_xmax + R3_xmin)/2 , (R3_ymax + R3_ymin)/2]
 
-		R4_xmax = 2
-		R4_xmin = 1.1
-		R4_ymax = 1.5
-		R4_ymin = 0
+		R4_xmax = 1
+		R4_xmin = -0.5
+		R4_ymax = 2.7
+		R4_ymin = 2.1
 		R4_midpt = [(R4_xmax + R4_xmin)/2 , (R4_ymax + R4_ymin)/2]
 
-		R5_xmax = 2.5
-		R5_xmin = 2
-		R5_ymax = 2
-		R5_ymin = 1.6
+		R5_xmax = 2
+		R5_xmin = 1.5
+		R5_ymax = 3
+		R5_ymin = 2.55
 		R5_midpt = [(R5_xmax + R5_xmin)/2 , (R5_ymax + R5_ymin)/2]
 
 		# R6_xmax = 0
@@ -301,14 +333,7 @@ if __name__ == "__main__":
 		m.addConstr(S[1][2] == 1)
 		m.addConstr(C[1][2] == 1)
 
-		# Require that the footstep at 5 visits 1,1
-		# m.addConstr(footsteps[5][0] == 0)
-		# m.addConstr(footsteps[5][1] == 0.1)
-		# m.addConstr(footsteps[5][2] == init_theta)
-		# m.addConstr(footsteps[5][3] == f1_s)
-		# m.addConstr(footsteps[5][4] == f1_c)
-
-		# Add constraint of how much can turn foot in one step
+		# Add constraint of how much foot can rotate in one step
 		for c in range(1,N):
 			del_theta_max = math.pi/8
 			m.addConstr((footsteps[c][2] - footsteps[c-1][2]) <= del_theta_max)
@@ -318,39 +343,53 @@ if __name__ == "__main__":
 		####################### SPECS ###########################
 		#########################################################
 
-		# SCENARIO 1
-		# Visit region 3 atleast once
-		m.addConstr(quicksum(H[j][2] for j in range(0,N)) >= 1)
-		#m.addConstr(quicksum(H[j][4] for j in range(0,N)) >= 1)
-		#m.addConstr(quicksum(H[j][3] for j in range(0,N)) >= 1)
-		# Vist region 5 atleast once after n footsteps
-		#m.addConstr(quicksum(H[j][4] for j in range(0,N)) >= 1)
-		# if you visit region 4, then have to visit 3 in next 4 steps
-		# M = 1000
-		# m.addConstr(M*(1-H[j][3]) + quicksum(H[j][2] for j in range(0,N)) >= 1)
+		########## SCENARIO 1 ##############
+		# Visit region 3 or 4 eventually
+		#m.addConstr(quicksum(H[j][2] for j in range(0,N)) + quicksum(H[j][3] for j in range(0,N)) >= 1)
 
-		# for c in range(0,N):
+
+		########## SCENARIO 2 ############### 
+		# # Until
+		# # Always be in regions 2 or 3 before entering region 4
+		# reg1 = 0 # region 2
+		# reg2 = 1 # region 3
+		# phi2_reg = 2 # region 4
+
+		# T = [m.addVar(vtype=GRB.BINARY, name="T"+str(i)) for i in range(0,N)]
+
+		# # Base case
+		# m.addConstr(T[N-1] == H[N-1][phi2_reg])
+
+		# # Satisfiability constraint
+		# # m.addConstr(quicksum(T[j] for j in range(0,N)) == N)
+		# m.addConstr(T[0] == 1)
+
+		# Pphi1 = [m.addVar(vtype=GRB.BINARY, name="Pphi1"+str(i)) for i in range(0,N-1)]
+		# B = [m.addVar(vtype=GRB.BINARY, name="B"+str(i)) for i in range(0,N-1)]
+
+		# # Recursive constraints
+		# for i in range(0,N-1):
 		# 	M = 1000
-		# 	m.addConstr( M*(1-H[c][3]) + quicksum(H[j][2] for j in range(c,c+4)) >= 1 )
+		# 	delta = 0.001
+			
+		# 	m.addConstr(H[i][reg1] + H[i][reg2] - 1 >= -M*(1-Pphi1[i]))
+		# 	m.addConstr(H[i][reg1] + H[i][reg2] - 1 + delta <=  M*(Pphi1[i]))
 
-		# SCENARIO 2
-		# If in region 3, eventually will be in region 4
+		# 	# Term in parenthesis
+		# 	m.addConstr(Pphi1[i] + T[i+1] - 2 >= -M*(1-B[i]))
+		# 	m.addConstr(Pphi1[i] + T[i+1] - 2 + delta <= M*(B[i]))
 
-		###############################
-		########### LTL ###############
-		###############################
-		# Need to visit region 3 atleast once
-		# m.addConstr(quicksum(H[j][1] for j in range(0,6)) >= 2)
-		# Need to visit region 5 atleast once after n footsteps
-		#m.addConstr(quicksum(H[j][4] for j in range(2,N)) >= 1)
+		# 	# Final constraint
+		# 	m.addConstr(H[i][phi2_reg] + B[i] - 1 >= -M*(1-T[i]))
+		# 	m.addConstr(H[i][phi2_reg] + B[i] - 1 + delta <= M*(T[i]))
 
-		#If in region 2, eventually will be in region 4
-		# for c in range(0,N):
-		# 	M = 1000
-		# 	m.addConstr( M*(1-H[c][1]) + quicksum(H[j][3] for j in range(c,N)) >= 1 )
+		########## SCENARIO 3 ##############
+		ni = 7
+		nf = 15
+		m.addConstr(quicksum(H[i][1] for i in range(ni-1,nf)) >= nf-ni+1)
 
 		# Set objective
-		g = [2.2,1.8,math.pi/2]
+		g = [1.5,2.2,3*math.pi/4]
 		e0 = footsteps[N-1][0]-g[0] 
 		e1 = footsteps[N-1][1]-g[1] 
 		e2 = footsteps[N-1][2]-g[2] 
@@ -369,7 +408,7 @@ if __name__ == "__main__":
 
 		#inc_cost = quicksum((footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][0]-footsteps[j-1][0])*R[0][0] for j in range(0,N))
 		#inc_cost = 0
-		m.setObjective( inc_cost
+		m.setObjective( term_cost + inc_cost
 				\
 				, GRB.MINIMIZE )
 
@@ -410,7 +449,9 @@ if __name__ == "__main__":
 
 		# Plot initial foot stance
 		ax1.plot(footsteps_x[0],footsteps_y[0], 'bo')
+		#ax1.text(footsteps_x[0]-0.05,footsteps_y[0]+0.02, str(1), fontsize=8, color='blue' )
 		ax1.plot(footsteps_x[1],footsteps_y[1], 'r*')
+		#ax1.text(footsteps_x[1],footsteps_x[1]-0.02, str(2), fontsize=8, color='red' )
 		ax1.arrow(footsteps_x[0],footsteps_y[0],0.25*math.cos(footsteps_theta[0]),0.25*math.sin(footsteps_theta[0]))
 		ax1.arrow(footsteps_x[1],footsteps_y[1],0.25*math.cos(footsteps_theta[1]),0.25*math.sin(footsteps_theta[1]))
 
@@ -452,6 +493,7 @@ if __name__ == "__main__":
 				#bl_x = cur_x
 				#bl_y = cur_y
 				ax1.plot(cur_x,cur_y,'bo')
+				# ax1.text(cur_x-0.18,cur_y-0.1, str(i+3), fontsize=8, color='blue' )
 				#rect = patches.Rectangle((bl_x,bl_y),0.1,0.25,math.degrees(cur_theta),linewidth=1, edgecolor='r',facecolor='none')
 				#ax1.add_patch(rect)
 				ax1.arrow(cur_x,cur_y,0.25*math.cos(cur_theta),0.25*math.sin(cur_theta))
@@ -479,6 +521,7 @@ if __name__ == "__main__":
 				bl_y = math.sin(cur_theta)*bl[0] + math.cos(cur_theta)*bl[1] + cur_y
 				# It is a right footstep
 				ax1.plot(cur_x,cur_y,'r*')
+				#ax1.text(cur_x-0.18,cur_y-0.1, str(i+3), fontsize=8, color='red' )
 				#rect = patches.Rectangle((bl_x,bl_y),0.1,0.25,math.degrees(cur_theta),linewidth=1, edgecolor='r',facecolor='none')
 				#ax1.add_patch(rect)
 				arrow = ax1.arrow(cur_x,cur_y,0.25*math.cos(cur_theta),0.25*math.sin(cur_theta))
@@ -490,13 +533,6 @@ if __name__ == "__main__":
 				center_x2 = cur_x + p2[0]*math.cos(cur_theta) - p2[1]*math.sin(cur_theta)
 				center_y2 = cur_y + p2[0]*math.sin(cur_theta) + p2[1]*math.cos(cur_theta)
 
-			 #ax1.legend([arrow], ['My label'], handler_map={patches.FancyArrow : HandlerPatch(patch_func=make_legend_arrow),
-    #                 })
-
-				# circ1 = patches.Circle((center_x1,center_y1),0.55,linewidth=1, edgecolor='b',facecolor='none')
-				# circ2 = patches.Circle((center_x2,center_y2),0.55,linewidth=1, edgecolor='b',facecolor='none')
-				# ax1.add_patch(circ1)
-				# ax1.add_patch(circ2)
 		ani = animation.FuncAnimation(fig, animate, interval=1000)
 		ax1.legend(["Right foot", "Left foot"])
 		offset = 0.1
@@ -507,14 +543,6 @@ if __name__ == "__main__":
 		ax1.text(R5_midpt[0]-offset,R5_midpt[1]-offset,"R5")
 
 		plt.show()
-
-
-		# for i in range(3,N):
-		# 	plt.plot(left_footsteps_x[:i],left_footsteps_y[:i],'bo', label="LL")
-		# 	plt.plot(right_footsteps_x[:i],right_footsteps_y[:i], 'r*', label="RL")
-		# 	plt.legend()
-		# 	plt.show()
-		# 	plt.pause(0.1)
 
 	except GurobiError as e:
 		print('Error code' + str(e.errno)+":"+str(e))
