@@ -317,44 +317,6 @@ if __name__ == "__main__":
 			m.addConstr((footsteps[c][2] - footsteps[c-1][2]) <= del_theta_max)
 			m.addConstr( (footsteps[c][2] - footsteps[c-1][2]) >= -del_theta_max)
 
-		#########################################################
-		####################### SPECS ###########################
-		#########################################################
-
-		# SCENARIO 1
-		# Visit region 3 atleast once
-		# m.addConstr(quicksum(H[j][2] for j in range(0,N)) >= 1)
-		# m.addConstr(quicksum(H[j][4] for j in range(0,N)) >= 1)
-
-
-		#m.addConstr(quicksum(H[j][3] for j in range(0,N)) >= 1)
-		# Vist region 5 atleast once after n footsteps
-		#m.addConstr(quicksum(H[j][4] for j in range(0,N)) >= 1)
-		# if you visit region 4, then have to visit 3 in next 4 steps
-		# M = 1000
-		# m.addConstr(M*(1-H[j][3]) + quicksum(H[j][2] for j in range(0,N)) >= 1)
-
-		# for c in range(0,N):
-		# 	M = 1000
-		# 	m.addConstr( M*(1-H[c][3]) + quicksum(H[j][2] for j in range(c,c+4)) >= 1 )
-
-		# SCENARIO 2
-		# If in region 3, eventually will be in region 4
-
-		###############################
-		########### LTL ###############
-		###############################
-		# Need to visit region 3 atleast once
-		# m.addConstr(quicksum(H[j][1] for j in range(0,6)) >= 2)
-		# Need to visit region 5 atleast once after n footsteps
-		#m.addConstr(quicksum(H[j][4] for j in range(2,N)) >= 1)
-
-		#If in region 2, eventually will be in region 4
-		# for c in range(0,N):
-		# 	M = 1000
-		# 	m.addConstr( M*(1-H[c][1]) + quicksum(H[j][3] for j in range(c,N)) >= 1 )
-
-
 		#### ORDERING STUFF ####
 		for c in range(2,N):
 			M =1000
@@ -419,7 +381,7 @@ if __name__ == "__main__":
 
 		###### PLOT ######
 
-		fig = plt.figure()
+		fig = plt.figure(figsize=(8, 8))
 		ax1 = fig.add_subplot(1,1,1)
 		ax1.set(xlim=(-2,5), ylim=(-2,5))
 
@@ -513,7 +475,7 @@ if __name__ == "__main__":
 				# ax1.add_patch(circ1)
 				# ax1.add_patch(circ2)
 		ani = animation.FuncAnimation(fig, animate, interval=1000)
-		ax1.legend(["Right foot", "Left foot"])
+		ax1.legend(["Left foot", "Right foot"])
 		offset = 0.1
 		ax1.text(R1_midpt[0]-offset,R1_midpt[1]-offset,"R1")
 		ax1.text(R2_midpt[0]-offset,R2_midpt[1]-offset,"R2")

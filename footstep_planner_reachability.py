@@ -480,7 +480,7 @@ if __name__ == "__main__":
 
 		###### PLOT ######
 
-		fig = plt.figure()
+		fig = plt.figure(figsize=(8, 8))
 		ax1 = fig.add_subplot(1,1,1)
 		ax1.set(xlim=(-2,5), ylim=(-2,5))
 
@@ -571,7 +571,7 @@ if __name__ == "__main__":
 				center_y2 = cur_y + p2[0]*math.sin(cur_theta) + p2[1]*math.cos(cur_theta)
 
 		ani = animation.FuncAnimation(fig, animate, interval=1000)
-		ax1.legend(["Right foot", "Left foot"])
+		ax1.legend(["Left foot", "Right foot"])
 		offset = 0.1
 		ax1.text(R1_midpt[0]-offset,R1_midpt[1]-offset,"R1")
 		ax1.text(R2_midpt[0]-offset,R2_midpt[1]-offset,"R2")

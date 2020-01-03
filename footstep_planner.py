@@ -32,7 +32,7 @@ if __name__ == "__main__":
 		# Set constraints
 
 		# DEFINE REGIONS
-		## SCENARIO 1
+		## SCENARIOS 1,2
 		# R1_xmax = 1
 		# R1_xmin = 0
 		# R1_ymax = 1
@@ -63,7 +63,7 @@ if __name__ == "__main__":
 		# R5_ymin = 1.1
 		# R5_midpt = [(R5_xmax + R5_xmin)/2 , (R5_ymax + R5_ymin)/2]
 
-		## SCENARIO 2
+		## SCENARIO 3
 		R1_xmax = 1
 		R1_xmin = 0
 		R1_ymax = 1
@@ -93,6 +93,8 @@ if __name__ == "__main__":
 		R5_ymax = 3
 		R5_ymin = 2.55
 		R5_midpt = [(R5_xmax + R5_xmin)/2 , (R5_ymax + R5_ymin)/2]
+
+		### EXTRA REGIONS ###
 
 		# R6_xmax = 0
 		# R6_xmin = -1
@@ -344,52 +346,53 @@ if __name__ == "__main__":
 		#########################################################
 
 		########## SCENARIO 1 ##############
-		# Visit region 3 or 4 eventually
-		#m.addConstr(quicksum(H[j][2] for j in range(0,N)) + quicksum(H[j][3] for j in range(0,N)) >= 1)
+		# # Visit region 3 or 4 eventually
+		# m.addConstr(quicksum(H[j][2] for j in range(0,N)) + quicksum(H[j][3] for j in range(0,N)) >= 1)
 
 
 		########## SCENARIO 2 ############### 
-		# # Until
-		# # Always be in regions 2 or 3 before entering region 4
-		# reg1 = 0 # region 2
-		# reg2 = 1 # region 3
-		# phi2_reg = 2 # region 4
+		# Until
+		# Always be in regions 2 or 3 before entering region 4
+		reg1 = 0 # region 1
+		reg2 = 1 # region 2
+		phi2_reg = 2 # region 43
 
-		# T = [m.addVar(vtype=GRB.BINARY, name="T"+str(i)) for i in range(0,N)]
+		T = [m.addVar(vtype=GRB.BINARY, name="T"+str(i)) for i in range(0,N)]
 
-		# # Base case
-		# m.addConstr(T[N-1] == H[N-1][phi2_reg])
+		# Base case
+		m.addConstr(T[N-1] == H[N-1][phi2_reg])
 
-		# # Satisfiability constraint
-		# # m.addConstr(quicksum(T[j] for j in range(0,N)) == N)
-		# m.addConstr(T[0] == 1)
+		# Satisfiability constraint
+		# m.addConstr(quicksum(T[j] for j in range(0,N)) == N)
+		m.addConstr(T[0] == 1)
 
-		# Pphi1 = [m.addVar(vtype=GRB.BINARY, name="Pphi1"+str(i)) for i in range(0,N-1)]
-		# B = [m.addVar(vtype=GRB.BINARY, name="B"+str(i)) for i in range(0,N-1)]
+		Pphi1 = [m.addVar(vtype=GRB.BINARY, name="Pphi1"+str(i)) for i in range(0,N-1)]
+		B = [m.addVar(vtype=GRB.BINARY, name="B"+str(i)) for i in range(0,N-1)]
 
-		# # Recursive constraints
-		# for i in range(0,N-1):
-		# 	M = 1000
-		# 	delta = 0.001
+		# Recursive constraints
+		for i in range(0,N-1):
+			M = 1000
+			delta = 0.001
 			
-		# 	m.addConstr(H[i][reg1] + H[i][reg2] - 1 >= -M*(1-Pphi1[i]))
-		# 	m.addConstr(H[i][reg1] + H[i][reg2] - 1 + delta <=  M*(Pphi1[i]))
+			m.addConstr(H[i][reg1] + H[i][reg2] - 1 >= -M*(1-Pphi1[i]))
+			m.addConstr(H[i][reg1] + H[i][reg2] - 1 + delta <=  M*(Pphi1[i]))
 
-		# 	# Term in parenthesis
-		# 	m.addConstr(Pphi1[i] + T[i+1] - 2 >= -M*(1-B[i]))
-		# 	m.addConstr(Pphi1[i] + T[i+1] - 2 + delta <= M*(B[i]))
+			# Term in parenthesis
+			m.addConstr(Pphi1[i] + T[i+1] - 2 >= -M*(1-B[i]))
+			m.addConstr(Pphi1[i] + T[i+1] - 2 + delta <= M*(B[i]))
 
-		# 	# Final constraint
-		# 	m.addConstr(H[i][phi2_reg] + B[i] - 1 >= -M*(1-T[i]))
-		# 	m.addConstr(H[i][phi2_reg] + B[i] - 1 + delta <= M*(T[i]))
+			# Final constraint
+			m.addConstr(H[i][phi2_reg] + B[i] - 1 >= -M*(1-T[i]))
+			m.addConstr(H[i][phi2_reg] + B[i] - 1 + delta <= M*(T[i]))
 
 		########## SCENARIO 3 ##############
-		ni = 7
-		nf = 15
-		m.addConstr(quicksum(H[i][1] for i in range(ni-1,nf)) >= nf-ni+1)
+		# ni = 7
+		# nf = 15
+		# m.addConstr(quicksum(H[i][1] for i in range(ni-1,nf)) >= nf-ni+1)
 
 		# Set objective
-		g = [1.5,2.2,3*math.pi/4]
+		# g = [2,1.5,math.pi/2]
+		g = [1.5,2.2,3*math.pi/4] # Scenario 3
 		e0 = footsteps[N-1][0]-g[0] 
 		e1 = footsteps[N-1][1]-g[1] 
 		e2 = footsteps[N-1][2]-g[2] 
@@ -443,13 +446,13 @@ if __name__ == "__main__":
 
 		###### PLOT ######
 
-		fig = plt.figure()
+		fig = plt.figure(figsize=(8, 8))
 		ax1 = fig.add_subplot(1,1,1)
 		ax1.set(xlim=(-2,5), ylim=(-2,5))
 
 		# Plot initial foot stance
 		ax1.plot(footsteps_x[0],footsteps_y[0], 'bo')
-		#ax1.text(footsteps_x[0]-0.05,footsteps_y[0]+0.02, str(1), fontsize=8, color='blue' )
+		# ax1.text(footsteps_x[0]-0.05,footsteps_y[0]+0.02, str(1), fontsize=8, color='blue' )
 		ax1.plot(footsteps_x[1],footsteps_y[1], 'r*')
 		#ax1.text(footsteps_x[1],footsteps_x[1]-0.02, str(2), fontsize=8, color='red' )
 		ax1.arrow(footsteps_x[0],footsteps_y[0],0.25*math.cos(footsteps_theta[0]),0.25*math.sin(footsteps_theta[0]))
@@ -534,7 +537,7 @@ if __name__ == "__main__":
 				center_y2 = cur_y + p2[0]*math.sin(cur_theta) + p2[1]*math.cos(cur_theta)
 
 		ani = animation.FuncAnimation(fig, animate, interval=1000)
-		ax1.legend(["Right foot", "Left foot"])
+		ax1.legend(["Left foot", "Right foot"])
 		offset = 0.1
 		ax1.text(R1_midpt[0]-offset,R1_midpt[1]-offset,"R1")
 		ax1.text(R2_midpt[0]-offset,R2_midpt[1]-offset,"R2")
