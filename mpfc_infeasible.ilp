@@ -1,0 +1,10 @@
+\ Model acosta_mpc_revised_copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+Minimize
+ 
+Subject To
+ R1: x_n0_k0[1] = 0.1103987539375491
+ R477: x_n0_k0[1] <= 0.1
+Bounds
+ x_n0_k0[1] free
+End

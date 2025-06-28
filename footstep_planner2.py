@@ -32,13 +32,6 @@ def get_alip_matrices_with_input(H_com, mass, g, T_ss_dt):
         [0],
         [1]
     ])
-    # M_cont = np.block([
-    #     [A_c_autonomous, B_c_input_effect],
-    #     [np.zeros((B_c_input_effect.shape[1], A_c_autonomous.shape[1])), np.zeros((B_c_input_effect.shape[1], B_c_input_effect.shape[1]))]
-    # ])
-    # M_disc = expm(M_cont * T_ss_dt)
-    # A_d_for_mpc = M_disc[0:A_c_autonomous.shape[0], 0:A_c_autonomous.shape[1]]
-    # B_d_for_mpc = M_disc[0:A_c_autonomous.shape[0], A_c_autonomous.shape[1]:]
     A_d_for_mpc =  expm(A_c_autonomous * T_ss_dt)
     B_d_for_mpc = np.linalg.inv(A_c_autonomous) @ (A_d_for_mpc - np.eye(A_c_autonomous.shape[0])) @ B_c_input_effect
     return A_d_for_mpc, B_d_for_mpc
@@ -500,37 +493,37 @@ if __name__ == "__main__":
 		########## SCENARIO 2 ############### 
 		# Until
 		# Always be in regions 2 or 3 before entering region 4
-		reg1 = 0 # region 1
-		reg2 = 1 # region 2
-		phi2_reg = 2 # region 43
+		# reg1 = 0 # region 1
+		# reg2 = 1 # region 2
+		# phi2_reg = 2 # region 43
 
-		T = [m.addVar(vtype=GRB.BINARY, name="T"+str(i)) for i in range(0,N)]
+		# T = [m.addVar(vtype=GRB.BINARY, name="T"+str(i)) for i in range(0,N)]
 
-		# Base case
-		m.addConstr(T[N-1] == H[N-1][phi2_reg])
+		# # Base case
+		# m.addConstr(T[N-1] == H[N-1][phi2_reg])
 
-		# Satisfiability constraint
-		# m.addConstr(quicksum(T[j] for j in range(0,N)) == N)
-		m.addConstr(T[0] == 1)
+		# # Satisfiability constraint
+		# # m.addConstr(quicksum(T[j] for j in range(0,N)) == N)
+		# m.addConstr(T[0] == 1)
 
-		Pphi1 = [m.addVar(vtype=GRB.BINARY, name="Pphi1"+str(i)) for i in range(0,N-1)]
-		B = [m.addVar(vtype=GRB.BINARY, name="B"+str(i)) for i in range(0,N-1)]
+		# Pphi1 = [m.addVar(vtype=GRB.BINARY, name="Pphi1"+str(i)) for i in range(0,N-1)]
+		# B = [m.addVar(vtype=GRB.BINARY, name="B"+str(i)) for i in range(0,N-1)]
 
-		# Recursive constraints
-		for i in range(0,N-1):
-			M = 20
-			delta = 0.001
+		# # Recursive constraints
+		# for i in range(0,N-1):
+		# 	M = 20
+		# 	delta = 0.001
 			
-			m.addConstr(H[i][reg1] + H[i][reg2] - 1 >= -M*(1-Pphi1[i]))
-			m.addConstr(H[i][reg1] + H[i][reg2] - 1 + delta <=  M*(Pphi1[i]))
+		# 	m.addConstr(H[i][reg1] + H[i][reg2] - 1 >= -M*(1-Pphi1[i]))
+		# 	m.addConstr(H[i][reg1] + H[i][reg2] - 1 + delta <=  M*(Pphi1[i]))
 
-			# Term in parenthesis
-			m.addConstr(Pphi1[i] + T[i+1] - 2 >= -M*(1-B[i]))
-			m.addConstr(Pphi1[i] + T[i+1] - 2 + delta <= M*(B[i]))
+		# 	# Term in parenthesis
+		# 	m.addConstr(Pphi1[i] + T[i+1] - 2 >= -M*(1-B[i]))
+		# 	m.addConstr(Pphi1[i] + T[i+1] - 2 + delta <= M*(B[i]))
 
-			# Final constraint
-			m.addConstr(H[i][phi2_reg] + B[i] - 1 >= -M*(1-T[i]))
-			m.addConstr(H[i][phi2_reg] + B[i] - 1 + delta <= M*(T[i]))
+		# 	# Final constraint
+		# 	m.addConstr(H[i][phi2_reg] + B[i] - 1 >= -M*(1-T[i]))
+		# 	m.addConstr(H[i][phi2_reg] + B[i] - 1 + delta <= M*(T[i]))
 
 		########## SCENARIO 3 ##############
 		# ni = 7
@@ -563,9 +556,6 @@ if __name__ == "__main__":
 		# 第一个速度是由上层控制给定
 		# 最后一个速度为0
 		# 中间速度为位移/周期
-
-  
-  
   
 		T_cycle = 1.0 # 假设两个中点之间的周期为1，这代表了脚印之间的时间
 
@@ -648,173 +638,23 @@ if __name__ == "__main__":
 			v = m.getVarByName("F"+str(c)+"[2]")
 			footsteps_theta.append(v.X)
 
-	  	# 根据x，y和地形可以解算z
-		footsteps_z = [] 
-		print(footsteps_x)
-		print(footsteps_y)
-		print(footsteps_theta)
-  
-		# 根据理想alip模型来规划参考质心轨迹
-		K_knots = 10
-		T_ss = 0.9
-		T_ds = 0.1
-		T_ss_dt = T_ss / (K_knots - 1)
-		T_s2s_cycle = T_ss + T_ds 
-
-		mass = 30.0
-		g = 9.81
-		H_com_nominal = 0.8
-  
-		A_c_autonomous = get_autonomous_alip_matrix_A(H_com_nominal, mass, g)
-		A_d_autonomous_knot = expm(A_c_autonomous * T_ss_dt)	 
-		A_s2s_autonomous_cycle = expm(A_c_autonomous * T_s2s_cycle)
-		Ar_reset, Br_reset_delta_p = get_alip_reset_map_matrices_detailed(T_ds, H_com_nominal, mass, g)
-  
-		A_d_mpc, B_d_mpc = get_alip_matrices_with_input(H_com_nominal, mass, g, T_ss_dt)
-  
-		x_d_horizon_ref = []
-  		x_current_alip_val = np.array(0,0,0,0)
-		x_d_nk_start = x_current_alip_val
-    	for n in range(2, N):
-			x_d_stage_n = []
-   			x_d_stage_n.append(np.copy(x_d_nk_start)) # Append the initial state for the first knot
-	      	for k in range(0, K_knots):
-				x_d_nk = np.dot(A_d_autonomous_knot, x_d_nk) 
-        		x_d_stage_n.append(np.copy(x_d_nk))
-
-			# 根据reset来更新x_d_nk_start
-			x_d_nk = Ar_reset @ x_d_nk + Br_reset_delta_p @ np.array([footsteps_x[n + 1] - footsteps_x[n], footsteps_y[n + 1] - footsteps_y[n], footsteps_z[n + 1] - footsteps_z[n]])
-   
-			x_d_horizon_ref.append(x_d_stage_n)
-    			
-
-		# 根据参考轨迹优化落脚点
-		model = Model("acosta_mpc_revised")
-		x_alip_vars = []
-		u_ankle_vars = []
-		for n in range(2, N):
-			x_n = []
-			u_n = []
-			for k in range(K_knots):
-				x_n.append(model.addVars(4, lb=-GRB.INFINITY, name=f"x_n{n}_k{k}"))
-				if k < K_knots - 1: 
-					u_n.append(model.addVar(lb=-5, ub=5, name=f"u_n{n}_k{k}"))
-			x_alip_vars.append(x_n)
-			if u_n:
-				u_ankle_vars.append(u_n)
-		p_foot_vars = [model.addVars(3, lb=-GRB.INFINITY, name=f"p_n{n+1}") for n in range(2, N)]
-  
-		N_REG = 5
-		H = [model.addVars(N_REG,vtype=GRB.BINARY, name="H"+str(i)) for i in range(0,N)]
-  
-		for i in range(4):
-        	model.addConstr(x_alip_vars[0][0][i] == x_current_alip_val[i])
-  
-		# 约束9b
-		for n in range(2, N):
-			for k in range(K_knots - 1):
-				for row in range(4):
-					model.addConstr(
-						x_alip_vars[n][k+1][row] == \
-						quicksum(A_d_mpc[row,col] * x_alip_vars[n][k][col] for col in range(4)) + \
-						B_d_mpc[row,0] * u_ankle_vars[n][k],
-						name=f"alip_dyn_n{n}_k{k}_row{row}"
-					)
-  
-	    # 约束9c
-		# 约束9c
-		for n in range(N - 3):
-			# p_n_stance_foot is the foot location for ALIP state x_alip_vars[n]
-			# For n=0, x_alip_vars[0] is relative to p_current_foot_val
-			# For n>0, x_alip_vars[n] is relative to p_foot_vars[n-1] (which is p_n)
-			if n == 0:
-				p_n_val_for_dp = p_current_foot_val # p0
-			else:
-				# p_foot_vars[n-1] is p_n (e.g., if n=1, p_foot_vars[0] is p1)
-				p_n_val_for_dp = [p_foot_vars[n-1][j] for j in range(3)] 
-			
-			# p_np1_next_stance_foot is p_foot_vars[n] (e.g. if n=0, p_foot_vars[0] is p1)
-			p_np1_val_for_dp = [p_foot_vars[n][j] for j in range(3)]
-
-			# dp = p_{n+1} - p_n
-			dp_x = p_np1_val_for_dp[0] - (p_n_val_for_dp[0] if isinstance(p_n_val_for_dp[0], Var) else p_n_val_for_dp[0])
-			dp_y = p_np1_val_for_dp[1] - (p_n_val_for_dp[1] if isinstance(p_n_val_for_dp[1], Var) else p_n_val_for_dp[1])
-			dp_z = p_np1_val_for_dp[2] - (p_n_val_for_dp[2] if isinstance(p_n_val_for_dp[2], Var) else p_n_val_for_dp[2])
-
-			for row in range(4):
-				br_term = Br_reset_delta_p[row,0] * dp_x + \
-							Br_reset_delta_p[row,1] * dp_y + \
-							Br_reset_delta_p[row,2] * dp_z
-				model.addConstr(
-					x_alip_vars[n+1][0][row] == \
-					quicksum(Ar_reset[row,col] * x_alip_vars[n][K_knots-1][col] for col in range(4)) + \
-					br_term,
-					name=f"alip_reset_n{n}_row{row}"
-				)
-  
-  
-		_big = 100 
-		for n in range(2, N):
-			current_foot_p_var = p_foot_vars[n] # This is p_{n+1} in math notation (p1, p2, p3 for N=3)
-			for i_region in range(N_REGIONS):
-				F_mat = regions_F[i_region]
-				c_vec = regions_c[i_region]
-				for row_idx in range(F_mat.shape[0]):
-					m.addConstr(
-						quicksum(F_mat[row_idx, col_idx] * current_foot_p_var[col_idx] for col_idx in range(3)) \
-						<= c_vec[row_idx] + M_big * (1 - mu_vars[n][i_region]),
-						name=f"foothold_n{n}_region{i_region}_row{row_idx}"
-					)
-			m.addConstr(quicksum(mu_vars[n][i_reg] for i_reg in range(N_REGIONS)) == 1, name=f"sum_mu_n{n}")
-   
-		max_dx = 0.4; max_dy = 0.3; 
-    
-    # Kinematic limits: (p_{n+1} - p_n)
-    prev_p_for_kin_limit = p_current_foot_val # This is p0
-    for n in range(N_horizon):
-        # p_foot_vars[n] is p_{n+1} (e.g. p1, p2, p3 for N=3)
-        current_p_for_kin_limit = p_foot_vars[n]
-        dx = current_p_for_kin_limit[0] - (prev_p_for_kin_limit[0] if not isinstance(prev_p_for_kin_limit[0],Var) else prev_p_for_kin_limit[0])
-        dy = current_p_for_kin_limit[1] - (prev_p_for_kin_limit[1] if not isinstance(prev_p_for_kin_limit[1],Var) else prev_p_for_kin_limit[1])
-        # dz = current_p_for_kin_limit[2] - (prev_p_for_kin_limit[2] if not isinstance(prev_p_for_kin_limit[2],Var) else prev_p_for_kin_limit[2]) # If dz limits needed
-
-        m.addConstr(dx <= max_dx, name=f"max_dx_n{n}")
-        m.addConstr(dx >= -max_dx, name=f"min_dx_n{n}")
-        m.addConstr(dy <= max_dy, name=f"max_dy_n{n}")
-        m.addConstr(dy >= -max_dy, name=f"min_dy_n{n}")
+		# 打印所有点的坐标
+		for i in range(0,N):
+			print(f"Footstep {i}: x={footsteps_x[i]:.2f}, y={footsteps_y[i]:.2f}, theta={footsteps_theta[i]:.2f}")
         
-        prev_p_for_kin_limit = current_p_for_kin_limit # Update for next iteration
+		###### PLOT ######
 
-    Q_state = np.diag([1.0, 1.0, 1.0, 1.0]) 
-    R_input_val = 0.1 
-    objective = 0
-    for n in range(N_horizon):
-        for k in range(K_knots):
-            x_curr_gurobi_vars = x_alip_vars[n][k]
-            x_d_target_vals = x_d_horizon[n][k] 
-            for r_idx in range(4): 
-                err_r = x_curr_gurobi_vars[r_idx] - x_d_target_vals[r_idx]
-                objective += err_r * Q_state[r_idx,r_idx] * err_r
-            
-            if k < K_knots - 1:
-                u_curr_gurobi_var = u_ankle_vars[n][k]
-                objective += u_curr_gurobi_var * R_input_val * u_curr_gurobi_var
-    
-    Q_f_state = Q_state * 0.1
-    x_final_actual_vars = x_alip_vars[N_horizon-1][K_knots-1]
-    x_final_desired_vals = x_d_horizon[N_horizon-1][K_knots-1]
-    for r_idx in range(4):
-        err_f_r = x_final_actual_vars[r_idx] - x_final_desired_vals[r_idx]
-        objective += err_f_r * Q_f_state[r_idx,r_idx] * err_f_r
-        
-    m.setObjective(objective, GRB.MINIMIZE)
+		
 
-    m.Params.MIPGap = 0.05 
-    m.Params.TimeLimit = 0.5 # Increased slightly for plotting overhead if run in same script
-    # m.setParam('DualReductions', 0)
-    # m.Params.NonConvex = 2 # If you have quadratic constraints (not here)
-    m.optimize()
-  
+		# Plot x_idea_all_data first and second arrays
+		# if len(x_idea_all_data) > 1:
+    	# 		x1 = x_idea_all_data[0][0
+		# 	y1 = x_idea_all_data[0][0][1]
+		# 	x2 = x_idea_all_data[0][1][0]
+		# 	y2 = x_idea_all_data[0][1][1]
+		# 	ax1.plot([x1, x2], [y1, y2], 'go-', label="ALIP trajectory (first two points)")
+
+		
 		###### PLOT ######
 
 		fig = plt.figure(figsize=(8, 8))
@@ -854,6 +694,21 @@ if __name__ == "__main__":
 		# rect = patches.Rectangle((R8_xmin,R8_ymin),R8_xmax-R8_xmin,R8_ymax-R8_ymin,linewidth=1, edgecolor='b',facecolor='green', alpha=0.4)
 		# ax1.add_patch(rect)
 
+		# Plot x_idea_all_data
+		
+
+		# Plot x_idea_all_data first and second arrays
+		# print(f"x_idea_all_data length: {len(x_idea_all_data)}")
+		# print("x_idea_all_data size:", np.array(x_idea_all_data).shape)
+		# if len(x_idea_all_data) > 1:
+		# 	for i in range(1):
+		# 		for j in range(K_knots_mpc):
+		# 			x1 = x_idea_all_data[i][j][0]
+		# 			y1 = x_idea_all_data[i][j][1]
+		# 			x2 = x_idea_all_data[i][j][0]
+		# 			y2 = x_idea_all_data[i][j][1]
+					# ax1.plot([x1, x2], [y1, y2], 'go-', label="ALIP trajectory (between steps)")
+    				
 		def animate(i):
 			if (i % 2 == 0) & (i < len(footsteps_x)-2):
 				# It is a left footstep

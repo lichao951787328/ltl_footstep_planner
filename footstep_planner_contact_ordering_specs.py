@@ -18,18 +18,25 @@ if __name__ == "__main__":
 
 		# Create variables
 		# Create N footstep variables (x,y,theta,s,c)
-		N = 10
+		N = 11
+		# 10 行 5列 的矩阵
 		footsteps = [m.addVars(5,lb=-5,name="F"+str(i)) for i in range(0,N)]
 
-		# Trig approx functions
+		# 变量的和满足一定的约束条件
+		# Trig approx functions，每个三角函数被简化成5段，确定每个脚的yaw属于哪一段。一共有10个脚步，所以有10个变量。
+		# 10行5列的二进制矩阵
 		S = [m.addVars(5,vtype=GRB.BINARY, name="S"+str(i)) for i in range(0,N)]
 		C = [m.addVars(5,vtype=GRB.BINARY, name="C"+str(i)) for i in range(0,N)]
 
 		# Safe Regions
 		N_REG = 5
+		# 给每个脚步分配一个安全区域变量，表示该脚步是否在安全区域内。一共有5个安全区域，所以是一个5维的二进制变量。
+  		# 10行5列的二进制矩阵
 		H = [m.addVars(N_REG,vtype=GRB.BINARY, name="H"+str(i)) for i in range(0,N)]
 
 		# Leg choice
+		# 每个脚属于左脚还是右脚
+  		# 10行1列的二进制矩阵
 		lleg = [m.addVar(vtype=GRB.BINARY, name="L"+str(i)) for i in range(0,N)]
 		rleg = [m.addVar(vtype=GRB.BINARY, name="R"+str(i)) for i in range(0,N)]
 
@@ -81,7 +88,7 @@ if __name__ == "__main__":
 		# R8_ymax = 2.6
 		# R8_ymin = 1.5
 
-
+		# 这是一个边界限制，保证脚步在安全区域内，这里的区域不仅仅是x，y还包括theta。 
 		A_1 = [[1, 0, 0],[-1, 0, 0],[0, 1, 0], [0, -1, 0],[0, 0, 1], [0, 0, -1]]
 		b_1 = [R1_xmax,-R1_xmin,R1_ymax,-R1_ymin,math.pi,math.pi/2]
 		print(A_1[1][2])
@@ -132,6 +139,10 @@ if __name__ == "__main__":
 			m.addConstr(quicksum(H[c][j] for j in range(0,N_REG)) == 1 )
 
 		#Reachability constraint
+		# 对于这个约束，引入了big-M方法。对于每个落脚，他在lleg和rleg中对立关系，一个是0，另一个就是1。
+  		# (xc + p1[0]*footsteps[c-1][4] - p1[1]*footsteps[c-1][3])
+		# (yc + p1[0]*footsteps[c-1][3] + p1[1]*footsteps[c-1][4])
+	  	# 是为了计算出坐标点p1，就是一个方向向量*转角的形式
 		for c in range(2,N):
 		# if odd after f1,f2 (fixed), so f3, f5, f7, ...
 		# Let's say odd is finding a step for right leg
@@ -145,6 +156,7 @@ if __name__ == "__main__":
 			xc = footsteps[c-1][0]
 			yc = footsteps[c-1][1]
 			thetac = footsteps[c-1][2]
+			# 确定范围
 			term1_a = xn - (xc + p1[0]*footsteps[c-1][4] - p1[1]*footsteps[c-1][3])
 			term2_a = yn - (yc + p1[0]*footsteps[c-1][3] + p1[1]*footsteps[c-1][4])
 			# term1_a = xn - (xc + p1[0])
@@ -181,7 +193,7 @@ if __name__ == "__main__":
 
 		# Add constraints for sin
 		for c in range(0,N):
-			for i in range(0,5):
+			for i in range(0,5):   
 				M = 1000
 				if i == 0:
 					phi_l = -math.pi
@@ -320,13 +332,14 @@ if __name__ == "__main__":
 		#### ORDERING STUFF ####
 		for c in range(2,N):
 			M =1000
-			m.addConstr(lleg[c]+rleg[c] == 1)
+			m.addConstr(lleg[c]+rleg[c] == 1) # 某个落脚点必定是左脚或者右脚
+			# 如果前一个脚是左脚，那么当前脚是右脚，紧接着的下面2式起到作用。如果前一个脚是右脚，那么当前脚是左脚，紧接着的下面3-4式起到作用。    
 			m.addConstr(-M*(1-lleg[c-1]) + rleg[c] <= 1)
 			m.addConstr(M*(1-lleg[c-1]) + rleg[c] >= 1)
 			m.addConstr(-M*(1-rleg[c-1]) + lleg[c] <= 1)
 			m.addConstr(M*(1-rleg[c-1]) + lleg[c] >= 1)
 
-		# Set objective
+		# Set objective 
 		g = [2.2,1.8,math.pi/2]
 		e0 = footsteps[N-1][0]-g[0] 
 		e1 = footsteps[N-1][1]-g[1] 
@@ -342,7 +355,7 @@ if __name__ == "__main__":
 			+(footsteps[j][2]-footsteps[j-1][2])*(footsteps[j][0]-footsteps[j-1][0])*R[2][0] + (footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][1]-footsteps[j-1][1])*R[0][1]\
 			+(footsteps[j][1]-footsteps[j-1][1])*(footsteps[j][1]-footsteps[j-1][1])*R[1][1] + (footsteps[j][2]-footsteps[j-1][2])*(footsteps[j][1]-footsteps[j-1][1])*R[1][2]\
 			+(footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][2]-footsteps[j-1][2])*R[2][0] + (footsteps[j][1]-footsteps[j-1][1])*(footsteps[j][2]-footsteps[j-1][2])*R[2][1]\
-			+(footsteps[j][2]-footsteps[j-1][2])*(footsteps[j][2]-footsteps[j-1][2])*R[2][2] for j in range(0,N))
+			+(footsteps[j][2]-footsteps[j-1][2])*(footsteps[j][2]-footsteps[j-1][2])*R[2][2] for j in range(1,N))
 
 		#inc_cost = quicksum((footsteps[j][0]-footsteps[j-1][0])*(footsteps[j][0]-footsteps[j-1][0])*R[0][0] for j in range(0,N))
 		#inc_cost = 0
