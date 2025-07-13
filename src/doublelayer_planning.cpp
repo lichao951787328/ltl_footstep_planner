@@ -1,7 +1,9 @@
 #include <doublelayer_planning.hpp>
 #include <iomanip>
 #include <random>
+// #include <matplotlibcpp.h>
 using namespace std;
+// namespace plt = matplotlibcpp;
 doublelayer_planning::doublelayer_planning()
 {
     model_upper.set(GRB_StringAttr_ModelName, "double_layer_upper");
@@ -166,49 +168,78 @@ std::pair<Eigen::Vector4d, Eigen::Vector4d> doublelayer_planning::calculate_peri
 
 void doublelayer_planning::initial_env()
 {
-    A_regions.resize(N_REG);
-    b_regions.resize(N_REG);
-
-    std::array<std::array<double, 3>, 6> A_template = {{
-        {{1, 0, 0}}, {{-1, 0, 0}}, {{0, 1, 0}}, {{0, -1, 0}}, {{0, 0, 1}}, {{0, 0, -1}}
-    }};
-
+    // 尝试把这个环境内的多边形表示成论文中的形式
+    // 多边形表达成法向量和顶点的形式，且顶点默认为逆时针
+    // vector<polygon3D> polygons;
     double R1_xmax = 1, R1_xmin = 0, R1_ymax = 1, R1_ymin = 0;
     double R2_xmax = 1.6, R2_xmin = 1.1, R2_ymax = 2, R2_ymin = 0;
     double R3_xmax = 2, R3_xmin = 1.1, R3_ymax = 2.5, R3_ymin = 2.1;
     double R4_xmax = 1, R4_xmin = -0.5, R4_ymax = 2.7, R4_ymin = 2.1;
     double R5_xmax = 2, R5_xmin = 1.5, R5_ymax = 3, R5_ymin = 2.55;
-
-    std::array<double, 2> R1_midpt = {(R1_xmax + R1_xmin) / 2, (R1_ymax + R1_ymin) / 2};
-    std::array<double, 2> R2_midpt = {(R2_xmax + R2_xmin) / 2, (R2_ymax + R2_ymin) / 2};
-    std::array<double, 2> R3_midpt = {(R3_xmax + R3_xmin) / 2, (R3_ymax + R3_ymin) / 2};
-    std::array<double, 2> R4_midpt = {(R4_xmax + R4_xmin) / 2, (R4_ymax + R4_ymin) / 2};
-    std::array<double, 2> R5_midpt = {(R5_xmax + R5_xmin) / 2, (R5_ymax + R5_ymin) / 2};
-
-    A_regions[0] = A_template; b_regions[0] = {R1_xmax, -R1_xmin, R1_ymax, -R1_ymin, M_PI, M_PI/2.0}; // Note: Python was math.pi, math.pi/2 for b[4],b[5]
-    A_regions[1] = A_template; b_regions[1] = {R2_xmax, -R2_xmin, R2_ymax, -R2_ymin, M_PI, M_PI/2.0}; // Assuming last two b are upper bounds
-    A_regions[2] = A_template; b_regions[2] = {R3_xmax, -R3_xmin, R3_ymax, -R3_ymin, M_PI, M_PI/2.0}; // If they were ranges, one would be -theta_lower
-    A_regions[3] = A_template; b_regions[3] = {R4_xmax, -R4_xmin, R4_ymax, -R4_ymin, M_PI, M_PI/2.0};
-    A_regions[4] = A_template; b_regions[4] = {R5_xmax, -R5_xmin, R5_ymax, -R5_ymin, M_PI, M_PI/2.0};
-
-    Eigen::Matrix<double, 6, 3> F_region_common;
-    F_region_common << 1,0,0, -1,0,0, 0,1,0, 0,-1,0, 0,0,1, 0,0,-1;
-    Eigen::Matrix<double, 6, 1> c_region0_vec, c_region1_vec, c_region2_vec, c_region3_vec, c_region4_vec;
-    c_region0_vec<<1, 0, 1, 0, 0, 0;
-    c_region1_vec<<1.6, -1.1, 2, 0, 0, 0;
-    c_region2_vec<<2, -1.1, 2.5, -2.1, 0, 0;
-    c_region3_vec<<1, 0.5, 2.7, -2.1, 0, 0;
-    c_region4_vec<<2, -1.5, 3, -2.55, 0, 0;
-    regions_F_list = {
-        F_region_common, F_region_common, F_region_common, F_region_common, F_region_common
-    };
-    regions_c_list = {
-        c_region0_vec, c_region1_vec, c_region2_vec, c_region3_vec, c_region4_vec
+    // Define vertices for each region in counterclockwise order
+    std::vector<std::vector<Eigen::Vector3d>> region_vertices = {
+        {Eigen::Vector3d(R1_xmin, R1_ymin, 0), Eigen::Vector3d(R1_xmax, R1_ymin, 0),  Eigen::Vector3d(R1_xmax, R1_ymax,  0), Eigen::Vector3d(R1_xmin, R1_ymax, 0)},
+        {Eigen::Vector3d(R2_xmin, R2_ymin, 0.05), Eigen::Vector3d(R2_xmax, R2_ymin, 0.05),  Eigen::Vector3d(R2_xmax, R2_ymax, 0.05), Eigen::Vector3d(R2_xmin, R2_ymax, 0.05)},
+        {Eigen::Vector3d(R3_xmin, R3_ymin, 0.1), Eigen::Vector3d(R3_xmax, R3_ymin, 0.1),  Eigen::Vector3d(R3_xmax, R3_ymax, 0.1), Eigen::Vector3d(R3_xmin, R3_ymax, 0.1)},
+        {Eigen::Vector3d(R4_xmin, R4_ymin, 0.1), Eigen::Vector3d(R4_xmax, R4_ymin, 0.1),  Eigen::Vector3d(R4_xmax, R4_ymax, 0.1), Eigen::Vector3d(R4_xmin, R4_ymax, 0.1)},
+        {Eigen::Vector3d(R5_xmin, R5_ymin, 0.1), Eigen::Vector3d(R5_xmax, R5_ymin, 0.1),  Eigen::Vector3d(R5_xmax, R5_ymax, 0.1), Eigen::Vector3d(R5_xmin, R5_ymax, 0.1)}
     };
 
+    // Convert vertices into polygon3D objects
+    for (const auto& vertices : region_vertices) {
+        polygon3D poly;
+        for (const auto& vertex : vertices) {
+            poly.vertices.push_back(vertex);
+        }
+        poly.normal = Eigen::Vector3d(0, 0, 1); // Assuming all polygons are in the XY plane
+        polygons.push_back(poly);
+    }
+    N_REG = polygons.size(); // Update the number of regions based on the polygons defined
 
+
+
+    // A_regions.resize(N_REG);
+    // b_regions.resize(N_REG);
+
+    // std::array<std::array<double, 3>, 6> A_template = {{
+    //     {{1, 0, 0}}, {{-1, 0, 0}}, {{0, 1, 0}}, {{0, -1, 0}}, {{0, 0, 1}}, {{0, 0, -1}}
+    // }};
+
+    // double R1_xmax = 1, R1_xmin = 0, R1_ymax = 1, R1_ymin = 0;
+    // double R2_xmax = 1.6, R2_xmin = 1.1, R2_ymax = 2, R2_ymin = 0;
+    // double R3_xmax = 2, R3_xmin = 1.1, R3_ymax = 2.5, R3_ymin = 2.1;
+    // double R4_xmax = 1, R4_xmin = -0.5, R4_ymax = 2.7, R4_ymin = 2.1;
+    // double R5_xmax = 2, R5_xmin = 1.5, R5_ymax = 3, R5_ymin = 2.55;
+
+    // std::array<double, 2> R1_midpt = {(R1_xmax + R1_xmin) / 2, (R1_ymax + R1_ymin) / 2};
+    // std::array<double, 2> R2_midpt = {(R2_xmax + R2_xmin) / 2, (R2_ymax + R2_ymin) / 2};
+    // std::array<double, 2> R3_midpt = {(R3_xmax + R3_xmin) / 2, (R3_ymax + R3_ymin) / 2};
+    // std::array<double, 2> R4_midpt = {(R4_xmax + R4_xmin) / 2, (R4_ymax + R4_ymin) / 2};
+    // std::array<double, 2> R5_midpt = {(R5_xmax + R5_xmin) / 2, (R5_ymax + R5_ymin) / 2};
+
+    // A_regions[0] = A_template; b_regions[0] = {R1_xmax, -R1_xmin, R1_ymax, -R1_ymin, M_PI, M_PI/2.0}; // Note: Python was math.pi, math.pi/2 for b[4],b[5]
+    // A_regions[1] = A_template; b_regions[1] = {R2_xmax, -R2_xmin, R2_ymax, -R2_ymin, M_PI, M_PI/2.0}; // Assuming last two b are upper bounds
+    // A_regions[2] = A_template; b_regions[2] = {R3_xmax, -R3_xmin, R3_ymax, -R3_ymin, M_PI, M_PI/2.0}; // If they were ranges, one would be -theta_lower
+    // A_regions[3] = A_template; b_regions[3] = {R4_xmax, -R4_xmin, R4_ymax, -R4_ymin, M_PI, M_PI/2.0};
+    // A_regions[4] = A_template; b_regions[4] = {R5_xmax, -R5_xmin, R5_ymax, -R5_ymin, M_PI, M_PI/2.0};
+
+    // Eigen::Matrix<double, 6, 3> F_region_common;
+    // F_region_common << 1,0,0, -1,0,0, 0,1,0, 0,-1,0, 0,0,1, 0,0,-1;
+    // Eigen::Matrix<double, 6, 1> c_region0_vec, c_region1_vec, c_region2_vec, c_region3_vec, c_region4_vec;
+    // c_region0_vec<<1, 0, 1, 0, 0, 0;
+    // c_region1_vec<<1.6, -1.1, 2, 0, 0, 0;
+    // c_region2_vec<<2, -1.1, 2.5, -2.1, 0, 0;
+    // c_region3_vec<<1, 0.5, 2.7, -2.1, 0, 0;
+    // c_region4_vec<<2, -1.5, 3, -2.55, 0, 0;
+    // regions_F_list = {
+    //     F_region_common, F_region_common, F_region_common, F_region_common, F_region_common
+    // };
+    // regions_c_list = {
+    //     c_region0_vec, c_region1_vec, c_region2_vec, c_region3_vec, c_region4_vec
+    // };
+
+    // 在实际应用中，需要根据x，y来解算z
     T_ss_dt = T_ss / (K_knots - 1);
-
 
     double init_theta = 0.0;
     double f1_s = std::sin(init_theta);
@@ -216,14 +247,16 @@ void doublelayer_planning::initial_env()
     // 第一个步态是左脚，第二个步态是右脚
     initial_stance_footsteps(0, 0) = 0.0; // x
     initial_stance_footsteps(1, 0) = nominal_stance_width; // y
-    initial_stance_footsteps(2, 0) = init_theta;
-    initial_stance_footsteps(3, 0) = f1_s; // sin(theta)
-    initial_stance_footsteps(4, 0) = f1_c; // cos(theta)
+    initial_stance_footsteps(2, 0) = 0; // 
+    initial_stance_footsteps(3, 0) = init_theta;
+    initial_stance_footsteps(4, 0) = f1_s; // sin(theta)
+    initial_stance_footsteps(5, 0) = f1_c; // cos(theta)
     initial_stance_footsteps(0, 1) = 0.0; // x
     initial_stance_footsteps(1, 1) = 0.0; // y
-    initial_stance_footsteps(2, 1) = init_theta;
-    initial_stance_footsteps(3, 1) = f1_s; // sin(theta)
-    initial_stance_footsteps(4, 1) = f1_c; // cos(theta)
+    initial_stance_footsteps(2, 1) = 0.0; // z
+    initial_stance_footsteps(3, 1) = init_theta;
+    initial_stance_footsteps(4, 1) = f1_s; // sin(theta)
+    initial_stance_footsteps(5, 1) = f1_c; // cos(theta)
 
     // initial_alip_x.x() = (initial_stance_footsteps(0, 0) + initial_stance_footsteps(0, 1)) / 2.0; // x
     // initial_alip_x.y() = (initial_stance_footsteps(1, 0) + initial_stance_footsteps(1, 1)) / 2.0; // y
@@ -246,14 +279,15 @@ void doublelayer_planning::initial_env()
 
 void doublelayer_planning::add_upper_layer_variables()
 {
+    cout<<"Add upper layer variables here"<<endl;
     // Add upper layer variables here
     // Example: footsteps = std::vector<std::vector<GRBVar>>(N, std::vector<GRBVar>(5));
-    footsteps.resize(N, std::vector<GRBVar>(5));
+    footsteps.resize(N, std::vector<GRBVar>(6)); // x y z theta sin cos
     for (int i = 0; i < N; ++i) 
     {
-        for (int j = 0; j < 5; ++j) 
+        for (int j = 0; j < 6; ++j) 
         {
-            footsteps[i][j] = model_upper.addVar(-5.0, 5.0, 0.0, GRB_CONTINUOUS, "F" + std::to_string(i) + "_" + std::to_string(j));
+            footsteps[i][j] = model_upper.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "F" + std::to_string(i) + "_" + std::to_string(j));
         }
     }
 
@@ -283,28 +317,43 @@ void doublelayer_planning::add_upper_layer_variables()
 
 void doublelayer_planning::add_upper_layer_constraints()
 {
-    double theta_upper_bound = M_PI;
-    double theta_lower_bound = -M_PI/2.0; 
-    for(int r=0; r<N_REG; ++r) 
-    {
-        b_regions[r][4] = theta_upper_bound;
-        b_regions[r][5] = -theta_lower_bound; // for -theta <= -theta_min
-    }
-
+    cout<<"Add upper layer constraints here"<<endl;
+    // double theta_upper_bound = M_PI;
+    // double theta_lower_bound = -M_PI/2.0; 
+    // for(int r=0; r<N_REG; ++r) 
+    // {
+    //     b_regions[r][4] = theta_upper_bound;
+    //     b_regions[r][5] = -theta_lower_bound; // for -theta <= -theta_min
+    // }
+    // auto {F, C} = polygons.calculateCoefficients();
     // All footsteps must be in one of the regions
     for (int c = 0; c < N; ++c) 
     {
         for (int r = 0; r < N_REG; ++r) 
         {
-            for (int i = 0; i < 6; ++i) 
-            { // 6 inequalities per region
+            std::pair<Eigen::MatrixX3d, Eigen::VectorXd> FC = polygons.at(r).calculateCoefficients();
+            Eigen::MatrixX3d F = FC.first; // Coefficients for inequalities
+            Eigen::VectorXd c_vec = FC.second; // Constants for inequalities
+            for (int i = 0; i < F.rows(); i++)
+            {
                 GRBLinExpr expr = 0;
                 for (int j = 0; j < 3; ++j) 
                 { // x, y, theta
-                    expr += A_regions[r][i][j] * footsteps[c][j];
+                    expr += F(i, j) * footsteps[c][j];
                 }
-                model_upper.addConstr(expr - b_regions[r][i] <= M_BIG * (1.0 - H_vars[c][r]), "region_constr_c" + std::to_string(c) + "_r" + std::to_string(r) + "_i" + std::to_string(i));
+                model_upper.addConstr(expr <= c_vec(i) + M_BIG * (1.0 - H_vars[c][r]), "region_constr_c" + std::to_string(c) + "_r" + std::to_string(r) + "_i" + std::to_string(i));
             }
+            // model_upper.addConstr(footsteps[c][2] <= theta_upper_bound + M_BIG * (1.0 - H_vars[c][r]), "theta_upper_c" + std::to_string(c) + "_r" + std::to_string(r));
+            // for (int i = 0; i < 6; ++i) 
+            // { // 6 inequalities per region
+            //     GRBLinExpr expr = 0;
+            //     for (int j = 0; j < 3; ++j) 
+            //     { // x, y, theta
+            //         expr += A_regions[r][i][j] * footsteps[c][j];
+            //     }
+            //     model_upper.addConstr(expr - b_regions[r][i] <= M_BIG * (1.0 - H_vars[c][r]), "region_constr_c" + std::to_string(c) + "_r" + std::to_string(r) + "_i" + std::to_string(i));
+            // }
+
         }
         // Sum of H_vars[c][j] for j must be 1
         GRBLinExpr sum_H = 0;
@@ -315,16 +364,20 @@ void doublelayer_planning::add_upper_layer_constraints()
         model_upper.addConstr(sum_H == 1.0, "sum_H_c" + std::to_string(c));
     }
 
+    cout<<"Upper layer constraints added."<<endl;
+
     // Reachability constraint
     for (int c = 2; c < N; ++c) 
     {
         GRBVar xn = footsteps[c][0];
         GRBVar yn = footsteps[c][1];
+        GRBVar zn = footsteps[c][2];
         GRBVar xc = footsteps[c-1][0];
         GRBVar yc = footsteps[c-1][1];
+        GRBVar zc = footsteps[c-1][2];
         // GRBVar thetac = footsteps[c-1][2]; // Not used directly, but sin/cos are
-        GRBVar sinc_prev = footsteps[c-1][3];
-        GRBVar cosc_prev = footsteps[c-1][4];
+        GRBVar sinc_prev = footsteps[c-1][4];
+        GRBVar cosc_prev = footsteps[c-1][5];
         // 实际上是和左右脚有关系的
         if (c % 2 != 0) 
         { // Odd step (e.g., f3, f5, ...), right leg
@@ -355,7 +408,12 @@ void doublelayer_planning::add_upper_layer_constraints()
             GRBLinExpr term2_b_expr = yn - (yc + p2[0]*sinc_prev + p2[1]*cosc_prev); // Python had this as term2 again
             model_upper.addQConstr(term1_b_expr * term1_b_expr + term2_b_expr * term2_b_expr <= d2*d2, "reach_b_c" + std::to_string(c));
         }
+
+        GRBLinExpr z_diff = zn - zc;
+        model_upper.addConstr(z_diff <= 0.15, "z_diff_upper_c" + std::to_string(c));
+        model_upper.addConstr(z_diff >= -0.15, "z_diff_lower_c" + std::to_string(c));
     }
+    
 
     // Sin approximation constraints
     std::vector<std::tuple<double, double, double, double>> sin_params = {
@@ -367,8 +425,9 @@ void doublelayer_planning::add_upper_layer_constraints()
     };
     for (int c = 0; c < N; ++c) 
     {
-        GRBVar theta_c = footsteps[c][2];
-        GRBVar sin_theta_c = footsteps[c][3];
+        // 3 is the index for theta, 4 for sin(theta), 5 for cos(theta)
+        GRBVar theta_c = footsteps[c][3];
+        GRBVar sin_theta_c = footsteps[c][4];
         for (int i = 0; i < 5; ++i) 
         {
             double phi_l = std::get<0>(sin_params[i]);
@@ -400,8 +459,9 @@ void doublelayer_planning::add_upper_layer_constraints()
     };
     for (int c = 0; c < N; ++c) 
     {
-        GRBVar theta_c = footsteps[c][2];
-        GRBVar cos_theta_c = footsteps[c][4];
+        // 3 is the index for theta, 4 for sin(theta), 5 for cos(theta)
+        GRBVar theta_c = footsteps[c][3];
+        GRBVar cos_theta_c = footsteps[c][5];
         for (int i = 0; i < 5; ++i) 
         {
             double phi_l = std::get<0>(cos_params[i]);
@@ -427,21 +487,25 @@ void doublelayer_planning::add_upper_layer_constraints()
 
     model_upper.addConstr(footsteps[0][0] == initial_stance_footsteps(0, 0), "f0_x");
     model_upper.addConstr(footsteps[0][1] == initial_stance_footsteps(1, 0), "f0_y");
+    model_upper.addConstr(footsteps[0][2] == initial_stance_footsteps(2, 0), "f0_z");
+    
     // footsteps[0][2] (theta) is not explicitly set here, but its sin/cos are.
     // This implies theta is such that sin(theta) = f1_s and cos(theta) = f1_c
     // We need to pick the S and C vars that correspond to theta=0
     // For sin: theta=0 is in segment 2 (-1 to 1), where S[c][2] = 1. g_l=1, h_l=0. sin(0) = 1*0+0=0
     // For cos: theta=0 is in segment 2 (1-pi/2 to pi/2-1), where C[c][2] = 1. g_l=0, h_l=1. cos(0) = 0*0+1=1
-    model_upper.addConstr(footsteps[0][3] == initial_stance_footsteps(3, 0), "f0_s");
-    model_upper.addConstr(footsteps[0][4] == initial_stance_footsteps(4, 0), "f0_c");
+
+    model_upper.addConstr(footsteps[0][4] == initial_stance_footsteps(4, 0), "f0_s");
+    model_upper.addConstr(footsteps[0][5] == initial_stance_footsteps(5, 0), "f0_c");
     model_upper.addConstr(S_vars[0][2] == 1.0, "S0_2"); // sin(0) is in segment where g=1,h=0 (-1 to 1)
     model_upper.addConstr(C_vars[0][2] == 1.0, "C0_2"); // cos(0) is in segment where g=0,h=1 (1-pi/2 to pi/2-1, approx -0.57 to 0.57)
 
     model_upper.addConstr(footsteps[1][0] == initial_stance_footsteps(0, 1), "f1_x");
     model_upper.addConstr(footsteps[1][1] == initial_stance_footsteps(1, 1), "f1_y");
-    model_upper.addConstr(footsteps[1][2] == initial_stance_footsteps(2, 1), "f1_theta"); // Explicitly set theta here
-    model_upper.addConstr(footsteps[1][3] == initial_stance_footsteps(3, 1), "f1_s");
-    model_upper.addConstr(footsteps[1][4] == initial_stance_footsteps(4, 1), "f1_c");
+    model_upper.addConstr(footsteps[1][2] == initial_stance_footsteps(2, 1), "f1_z");
+    model_upper.addConstr(footsteps[1][3] == initial_stance_footsteps(3, 1), "f1_theta"); // Explicitly set theta here
+    model_upper.addConstr(footsteps[1][4] == initial_stance_footsteps(4, 1), "f1_s");
+    model_upper.addConstr(footsteps[1][5] == initial_stance_footsteps(5, 1), "f1_c");
     model_upper.addConstr(S_vars[1][2] == 1.0, "S1_2");
     model_upper.addConstr(C_vars[1][2] == 1.0, "C1_2");
 
@@ -461,7 +525,7 @@ void doublelayer_planning::add_upper_layer_constraints()
     double del_theta_max = M_PI / 8.0;
     for (int c = 1; c < N; ++c) 
     {
-        GRBLinExpr delta_theta = footsteps[c][2] - footsteps[c-1][2];
+        GRBLinExpr delta_theta = footsteps[c][3] - footsteps[c-1][3];
         model_upper.addConstr(delta_theta <= del_theta_max, "max_rot_pos_c" + std::to_string(c));
         model_upper.addConstr(delta_theta >= -del_theta_max, "max_rot_neg_c" + std::to_string(c));
     }
@@ -470,22 +534,30 @@ void doublelayer_planning::add_upper_layer_constraints()
 
 void doublelayer_planning::solve_upper_layer()
 {
+    cout<<"Solve upper layer here"<<endl;
     GRBQuadExpr total_objective = 0;
     // Terminal cost (Scenario 3 goal)
-    std::array<double, 3> g_target = {1.5, 2.2, 3.0 * M_PI / 4.0};
-    GRBLinExpr e0 = footsteps[N-1][0] - g_target[0];
-    GRBLinExpr e1 = footsteps[N-1][1] - g_target[1];
-    GRBLinExpr e2 = footsteps[N-1][2] - g_target[2];
+    std::array<double, 4> g_target = {1.5, 2.2, 0, 3.0 * M_PI / 4.0};
+    GRBLinExpr e0 = footsteps[N-1][0] - g_target[0]; // x
+    GRBLinExpr e1 = footsteps[N-1][1] - g_target[1]; // y
+    GRBLinExpr e2 = footsteps[N-1][2] - g_target[2]; // z
+    GRBLinExpr e3 = footsteps[N-1][3] - g_target[3]; // theta
     
-    std::array<std::array<double,3>,3> Q_mat = {{ {300,0,0}, {0,300,0}, {0,0,300} }};
+    // std::array<std::array<double,3>,3> Q_mat = {{ {300,0,0}, {0,300,0}, {0,0,300} }};
+    Eigen::Matrix4d Q_mat = Eigen::Matrix4d::Identity() * 300.0; // Diagonal matrix for terminal cost
     GRBQuadExpr term_cost = 0;
-    term_cost += e0*e0*Q_mat[0][0] + e0*e1*Q_mat[0][1] + e0*e2*Q_mat[0][2];
-    term_cost += e1*e0*Q_mat[1][0] + e1*e1*Q_mat[1][1] + e1*e2*Q_mat[1][2];
-    term_cost += e2*e0*Q_mat[2][0] + e2*e1*Q_mat[2][1] + e2*e2*Q_mat[2][2];
+    // term_cost += e0*e0*Q_mat[0][0] + e0*e1*Q_mat[0][1] + e0*e2*Q_mat[0][2];
+    // term_cost += e1*e0*Q_mat[1][0] + e1*e1*Q_mat[1][1] + e1*e2*Q_mat[1][2];
+    // term_cost += e2*e0*Q_mat[2][0] + e2*e1*Q_mat[2][1] + e2*e2*Q_mat[2][2];
+    term_cost += e0*e0*Q_mat(0, 0);
+    term_cost += e1*e1*Q_mat(1, 1);
+    term_cost += e2*e2*Q_mat(2, 2);
+    term_cost += e3*e3*Q_mat(3, 3);
     total_objective += term_cost;
 
     // Incremental cost
-    std::array<std::array<double,3>,3> R_mat = {{ {0.5,0,0}, {0,0.5,0}, {0,0,0.5} }};
+    // std::array<std::array<double,3>,3> R_mat = {{ {0.5,0,0}, {0,0.5,0}, {0,0,0.5} }};
+    Eigen::Matrix3d R_mat = Eigen::Matrix3d::Identity() * 0.5;
     GRBQuadExpr inc_cost = 0;
     // Python: for j in range(0,N). If j=0, footsteps[j-1] is invalid.
     // Assuming it's range(1,N) for differences, or special handling for j=0.
@@ -493,15 +565,17 @@ void doublelayer_planning::solve_upper_layer()
     // Let's assume it was meant for j from 1 to N-1 (N-1 differences).
     // Or, if it's N terms, then footsteps[-1] is perhaps footsteps[N-1] (cyclic) or 0.
     // Given the context of path smoothness, range(1,N) seems more likely.
-    for (int j = 1; j < N; ++j) {
+    for (int j = 1; j < N; ++j) 
+    {
         GRBLinExpr dx = footsteps[j][0] - footsteps[j-1][0];
         GRBLinExpr dy = footsteps[j][1] - footsteps[j-1][1];
-        GRBLinExpr dtheta = footsteps[j][2] - footsteps[j-1][2];
-        inc_cost += dx*dx*R_mat[0][0] + dy*dy*R_mat[1][1] + dtheta*dtheta*R_mat[2][2];
-        // Add off-diagonal terms if R_mat is not diagonal
-        inc_cost += dx*dy*R_mat[0][1] + dx*dtheta*R_mat[0][2];
-        inc_cost += dy*dx*R_mat[1][0] + dy*dtheta*R_mat[1][2];
-        inc_cost += dtheta*dx*R_mat[2][0] + dtheta*dy*R_mat[2][1];
+        GRBLinExpr dtheta = footsteps[j][3] - footsteps[j-1][3];
+        inc_cost += dx*dx*R_mat(0, 0) + dy*dy*R_mat(1, 1) + dtheta*dtheta*R_mat(2, 2);
+        // inc_cost += dx*dx*R_mat[0][0] + dy*dy*R_mat[1][1] + dtheta*dtheta*R_mat[2][2];
+        // // Add off-diagonal terms if R_mat is not diagonal
+        // inc_cost += dx*dy*R_mat[0][1] + dx*dtheta*R_mat[0][2];
+        // inc_cost += dy*dx*R_mat[1][0] + dy*dtheta*R_mat[1][2];
+        // inc_cost += dtheta*dx*R_mat[2][0] + dtheta*dy*R_mat[2][1];
     }
     total_objective += inc_cost;
 
@@ -545,6 +619,45 @@ void doublelayer_planning::solve_upper_layer()
     model_upper.setObjective(total_objective, GRB_MINIMIZE);
     model_upper.optimize();
 
+    cout<<"Upper layer optimization complete."<<endl;
+    // --- NEW DEBUGGING BLOCK ---
+    int status = model_upper.get(GRB_IntAttr_Status);
+
+    // <<< FIX: 更健壮的状态检查逻辑
+    if (status == GRB_INF_OR_UNBD) {
+        std::cerr << "Warning: Model is infeasible or unbounded. Turning off presolve and re-optimizing to distinguish." << std::endl;
+        // 关闭预处理器
+        model_upper.set(GRB_IntParam_Presolve, 0);
+        // 重新求解
+        model_upper.optimize();
+        // 再次获取状态
+        status = model_upper.get(GRB_IntAttr_Status);
+    }
+
+
+    if (status == GRB_OPTIMAL || status == GRB_SUBOPTIMAL) {
+        std::cout << "Upper layer optimization successful." << std::endl;
+        std::cout << "Gurobi optimization time: " << model_upper.get(GRB_DoubleAttr_Runtime) << " seconds" << std::endl;
+        std::cout << "Objective value: " << model_upper.get(GRB_DoubleAttr_ObjVal) << std::endl;
+    } 
+    else if (status == GRB_INFEASIBLE) { // 现在可以正确进入这个分支了
+        std::cerr << "ERROR: Upper layer model is INFEASIBLE." << std::endl;
+        std::cerr << "Computing IIS (Irreducible Inconsistent Subsystem) to find the conflict..." << std::endl;
+        model_upper.computeIIS();
+        model_upper.write("upper_layer_infeasible.ilp");
+        std::cerr << "IIS written to 'upper_layer_infeasible.ilp'. Inspect this file." << std::endl;
+        throw std::runtime_error("Upper layer failed to solve due to infeasibility.");
+    }
+    else if (status == GRB_UNBOUNDED) {
+        std::cerr << "ERROR: Upper layer model is UNBOUNDED." << std::endl;
+        std::cerr << "This usually means the objective can be improved infinitely." << std::endl;
+        std::cerr << "Check if all variables have proper bounds or if the objective function is correct." << std::endl;
+        throw std::runtime_error("Upper layer failed to solve due to being unbounded.");
+    }
+    else {
+        std::cerr << "ERROR: Upper layer optimization failed with unhandled status code " << status << std::endl;
+        throw std::runtime_error("Upper layer failed to solve.");
+    }
     std::cout << "Gurobi optimization time: " << model_upper.get(GRB_DoubleAttr_Runtime) << " seconds" << std::endl;
     std::cout << "Objective value: " << model_upper.get(GRB_DoubleAttr_ObjVal) << std::endl;
 
@@ -613,7 +726,6 @@ void doublelayer_planning::add_lower_layer_variables()
     }
         
     p_foot_vars.resize(N - 2, std::vector<GRBVar>(3)); // 3 coordinates: x, y, 0
-
     for (int n = 0; n < N - 2; ++n) 
     {
         for (int j = 0; j < 3; ++j) 
@@ -705,7 +817,7 @@ void doublelayer_planning::add_lower_layer_constraints()
             }
         }
     }
-    
+    cout<<"Added ALIP dynamics constraints for single support phase."<<endl;
     // 注意这里缺少一个环节，因为上层规划的落脚点没有z坐标，下层规划的ALIP需要z坐标
     // 这里的z需要根据初始时刻的双脚与平面的约束来决定
 
@@ -717,7 +829,7 @@ void doublelayer_planning::add_lower_layer_constraints()
             // 第二列为初始支撑脚的落脚点
             dp_x = p_foot_vars[n][0] - initial_stance_footsteps(0, 1);
             dp_y = p_foot_vars[n][1] - initial_stance_footsteps(1, 1);
-            dp_z = p_foot_vars[n][2] - 0; // Assuming z=0 for initial stance foot
+            dp_z = p_foot_vars[n][2] - initial_stance_footsteps(2, 1); // Assuming z=0 for initial stance foot
         }
         else 
         {
@@ -732,32 +844,68 @@ void doublelayer_planning::add_lower_layer_constraints()
             model_lower.addConstr(x_alip_vars[n+1][0][row] == gurobi_quicksum(Ar_ds, row, x_alip_vars[n][K_knots-1]) + br_term, "alip_reset_n" + std::to_string(n) + "_r" + std::to_string(row));
         }
     }
-
-
+    cout<<"Added ALIP reset map constraints for double support phase."<<endl;
     // 9d: Foothold region constraints
-    const double M_big = 100.0;
-    for (int n = 0; n < N - 2; ++n) 
-    { // p_foot_vars[n] is p_{n+1}
-        for (int i_reg = 0; i_reg < N_REG; ++i_reg) 
+    for (int c = 0; c < N - 2; ++c) 
+    {
+        for (int r = 0; r < N_REG; ++r) 
         {
-            const Eigen::MatrixXd& F_mat = regions_F_list[i_reg]; // Should be 6x3
-            const Eigen::VectorXd& c_vec = regions_c_list[i_reg]; // Should be 6x1
-            for (int row_idx = 0; row_idx < F_mat.rows(); ++row_idx) 
+            std::pair<Eigen::MatrixX3d, Eigen::VectorXd> FC = polygons.at(r).calculateCoefficients();
+            Eigen::MatrixX3d F = FC.first; // Coefficients for inequalities
+            Eigen::VectorXd c_vec = FC.second; // Constants for inequalities
+            for (int i = 0; i < F.rows(); i++)
             {
-                GRBLinExpr Fp_expr = 0;
-                for (int col_idx = 0; col_idx < 3; ++col_idx) 
-                {
-                    Fp_expr += F_mat(row_idx, col_idx) * p_foot_vars[n][col_idx];
+                GRBLinExpr expr = 0;
+                for (int j = 0; j < 3; ++j) 
+                { // x, y, theta
+                    expr += F(i, j) * p_foot_vars[c][j];
                 }
-                model_lower.addConstr( Fp_expr <= c_vec(row_idx) + M_big * (1.0 - mu_vars[n][i_reg]), "foothold_n" + std::to_string(n+1) + "_reg" + std::to_string(i_reg) + "_row" + std::to_string(row_idx)
-                );
+                model_lower.addConstr(expr <= c_vec(i) + M_BIG * (1.0 - mu_vars[c][r]), "region_constr_c" + std::to_string(c) + "_r" + std::to_string(r) + "_i" + std::to_string(i));
             }
-        }
-        GRBLinExpr sum_mu = 0;
-        for(int i_reg=0; i_reg < N_REG; ++i_reg) sum_mu += mu_vars[n][i_reg];
-        model_lower.addConstr(sum_mu == 1.0, "sum_mu_n" + std::to_string(n+1));
-    }
+            // model_upper.addConstr(footsteps[c][2] <= theta_upper_bound + M_BIG * (1.0 - H_vars[c][r]), "theta_upper_c" + std::to_string(c) + "_r" + std::to_string(r));
+            // for (int i = 0; i < 6; ++i) 
+            // { // 6 inequalities per region
+            //     GRBLinExpr expr = 0;
+            //     for (int j = 0; j < 3; ++j) 
+            //     { // x, y, theta
+            //         expr += A_regions[r][i][j] * footsteps[c][j];
+            //     }
+            //     model_upper.addConstr(expr - b_regions[r][i] <= M_BIG * (1.0 - H_vars[c][r]), "region_constr_c" + std::to_string(c) + "_r" + std::to_string(r) + "_i" + std::to_string(i));
+            // }
 
+        }
+        // Sum of H_vars[c][j] for j must be 1
+        GRBLinExpr sum_H = 0;
+        for (int j = 0; j < N_REG; ++j) 
+        {
+            sum_H += mu_vars[c][j];
+        }
+        model_lower.addConstr(sum_H == 1.0, "sum_H_c" + std::to_string(c));
+    }
+    cout<<"Added foothold region constraints."<<endl;
+    // 9d: Foothold region constraints
+    // const double M_big = 100.0;
+    // for (int n = 0; n < N - 2; ++n) 
+    // { // p_foot_vars[n] is p_{n+1}
+    //     for (int i_reg = 0; i_reg < N_REG; ++i_reg) 
+    //     {
+    //         const Eigen::MatrixXd& F_mat = regions_F_list[i_reg]; // Should be 6x3
+    //         const Eigen::VectorXd& c_vec = regions_c_list[i_reg]; // Should be 6x1
+    //         for (int row_idx = 0; row_idx < F_mat.rows(); ++row_idx) 
+    //         {
+    //             GRBLinExpr Fp_expr = 0;
+    //             for (int col_idx = 0; col_idx < 3; ++col_idx) 
+    //             {
+    //                 Fp_expr += F_mat(row_idx, col_idx) * p_foot_vars[n][col_idx];
+    //             }
+    //             model_lower.addConstr( Fp_expr <= c_vec(row_idx) + M_big * (1.0 - mu_vars[n][i_reg]), "foothold_n" + std::to_string(n+1) + "_reg" + std::to_string(i_reg) + "_row" + std::to_string(row_idx)
+    //             );
+    //         }
+    //     }
+    //     GRBLinExpr sum_mu = 0;
+    //     for(int i_reg=0; i_reg < N_REG; ++i_reg) sum_mu += mu_vars[n][i_reg];
+    //     model_lower.addConstr(sum_mu == 1.0, "sum_mu_n" + std::to_string(n+1));
+    // }
     // 
 
 
@@ -773,27 +921,34 @@ void doublelayer_planning::add_lower_layer_constraints()
     // }
 
     // Kinematic limits (p_{n+1} - p_n)
-    const double max_dx = 0.4, max_dy = 0.3;
+    const double max_dx = 0.4, max_dy = 0.3, max_dz = 0.2; // Adjust these limits as needed
     // std::vector<GRBVar> prev_p_for_kin_limit_vars(3); // Not needed if p_current is const
-    Eigen::Vector3d prev_p_val_for_kin = Eigen::Vector3d(initial_stance_footsteps(0, 1), initial_stance_footsteps(1, 1), 0.0); // Assuming z=0 for initial stance foot
+    // Eigen::Vector3d prev_p_val_for_kin = initial_stance_footsteps.head(3);
+    Eigen::Vector3d prev_p_val_for_kin = initial_stance_footsteps.col(1).head(3); // Initial stance foot position
+    
+    // Eigen::Vector3d(initial_stance_footsteps(0, 1), initial_stance_footsteps(1, 1), 0.0); // Assuming z=0 for initial stance foot
 
     for (int n = 0; n < N - 2; ++n) 
     { // p_foot_vars[n] is p_{n+1}
-        GRBLinExpr dx, dy;
+        GRBLinExpr dx, dy, dz;
         if (n == 0) 
         {
                 dx = p_foot_vars[n][0] - prev_p_val_for_kin(0);
                 dy = p_foot_vars[n][1] - prev_p_val_for_kin(1);
+                dz = p_foot_vars[n][2] - prev_p_val_for_kin(2);
         }
         else 
         {
                 dx = p_foot_vars[n][0] - p_foot_vars[n-1][0];
                 dy = p_foot_vars[n][1] - p_foot_vars[n-1][1];
+                dz = p_foot_vars[n][2] - p_foot_vars[n-1][2];
         }
         model_lower.addConstr(dx <= max_dx, "max_dx_n" + std::to_string(n+1));
         model_lower.addConstr(dx >= -max_dx, "min_dx_n" + std::to_string(n+1));
         model_lower.addConstr(dy <= max_dy, "max_dy_n" + std::to_string(n+1));
         model_lower.addConstr(dy >= -max_dy, "min_dy_n" + std::to_string(n+1));
+        model_lower.addConstr(dz <= max_dz, "max_dz_n" + std::to_string(n+1));
+        model_lower.addConstr(dz >= -max_dz, "min_dz_n" + std::to_string(n+1));
         // prev_p_for_kin_limit_vars becomes p_foot_vars[n] for next iter, handled by n-1 indexing
     }
 
@@ -802,14 +957,15 @@ void doublelayer_planning::add_lower_layer_constraints()
 
 void doublelayer_planning::solve_lower_layer()
 {
+    cout<<"Solving lower layer optimization problem..."<<endl;
     // --- Objective Function ---
     GRBQuadExpr objective = 0;
 
     // --- 1. 终端成本 (Terminal Cost on Final State) ---
     // 让最终的ALIP状态尽可能稳定（例如，角动量为零）
     Eigen::Matrix4d Q_terminal = Eigen::Matrix4d::Zero();
-    Q_terminal(2,2) = 1.0; // 惩罚 Lx
-    Q_terminal(3,3) = 1.0; // 惩罚 Ly
+    Q_terminal(2,2) = 8.0; // 惩罚 Lx
+    Q_terminal(3,3) = 8.0; // 惩罚 Ly
     // 你也可以惩罚最终的 CoM 位置，让它停在最后一个落脚点中间
     // ...
     GRBLinExpr err_Lx_final = x_alip_vars[N-3][K_knots-1][2] - 0.0;
@@ -819,13 +975,13 @@ void doublelayer_planning::solve_lower_layer()
 
     // --- 2. 落脚点追踪成本 (Footstep Tracking Cost) ---
     // 这是核心！强力追踪上层的footsteps
-    double W_footstep = 1.0; // 非常大的权重
+    double W_footstep = 2; // 非常大的权重
     for (int n = 0; n < N - 2; ++n) 
     {
         // 目标落脚点 p_d 来自上层规划
         double target_px = footsteps[n + 2][0].get(GRB_DoubleAttr_X);
         double target_py = footsteps[n + 2][1].get(GRB_DoubleAttr_X);
-        double target_pz = 0.0; // 假设平地
+        double target_pz = footsteps[n + 2][2].get(GRB_DoubleAttr_X); // 假设平地
 
         GRBLinExpr err_px = p_foot_vars[n][0] - target_px;
         GRBLinExpr err_py = p_foot_vars[n][1] - target_py;
@@ -836,7 +992,7 @@ void doublelayer_planning::solve_lower_layer()
 
     // --- 3. 阶段成本 (Stage Cost for smoothness) ---
     // 惩罚控制输入，让动作平滑
-    double W_input = 1;
+    double W_input = 4;
     for (int n = 0; n < N - 2; ++n) {
         for (int k = 0; k < K_knots - 1; ++k) {
             objective += W_input * (u_ankle_vars[n][k] * u_ankle_vars[n][k] + v_ankle_vars[n][k] * v_ankle_vars[n][k]);
@@ -904,14 +1060,14 @@ void doublelayer_planning::solve_lower_layer()
                       << ", z=" << p_planned_vals_optimized_eigen[n_opt](2) << std::endl;
         }
         std::cout << "\n--- Optimized Ankle Inputs (u_ankle_vars and v_ankle_vars) ---" << std::endl;
-        for (int n_opt = 0; n_opt < N - 2; ++n_opt) {
-            for (int k_opt = 0; k_opt < K_knots - 1; ++k_opt) {
-                double u_val = u_ankle_vars[n_opt][k_opt].get(GRB_DoubleAttr_X);
-                double v_val = v_ankle_vars[n_opt][k_opt].get(GRB_DoubleAttr_X);
-                std::cout << "Stage " << n_opt << ", Knot " << k_opt << ": u_ankle = " << std::fixed << std::setprecision(3) << u_val
-                          << ", v_ankle = " << v_val << std::endl;
-            }
-        }
+        // for (int n_opt = 0; n_opt < N - 2; ++n_opt) {
+        //     for (int k_opt = 0; k_opt < K_knots - 1; ++k_opt) {
+        //         double u_val = u_ankle_vars[n_opt][k_opt].get(GRB_DoubleAttr_X);
+        //         double v_val = v_ankle_vars[n_opt][k_opt].get(GRB_DoubleAttr_X);
+        //         std::cout << "Stage " << n_opt << ", Knot " << k_opt << ": u_ankle = " << std::fixed << std::setprecision(3) << u_val
+        //                   << ", v_ankle = " << v_val << std::endl;
+        //     }
+        // }
         
         std::vector<std::vector<double>> mu_planned_vals_optimized(N - 2, std::vector<double>(N_REG));
         for (int n_opt = 0; n_opt < N - 2; ++n_opt) 
@@ -970,6 +1126,63 @@ void doublelayer_planning::solve_lower_layer()
 //     }
 // }
 
+// 新增的绘图函数实现
+// void doublelayer_planning::plot_results()
+// {
+//     plt::figure(); // 创建一个新的图形窗口
+//     plt::title("Footstep Planning Results");
+    
+//     // 1. 绘制安全区域 (从 initial_env 移过来的代码)
+//     for (auto & ploy : polygons)
+//     {
+//         std::vector<double> xs, ys;
+//         for (const auto& vertex : ploy.vertices) 
+//         {
+//             xs.push_back(vertex.x());
+//             ys.push_back(vertex.y());
+//         }
+//         // 闭合多边形以绘制边框
+//         if (!xs.empty()) {
+//             xs.push_back(xs.front());
+//             ys.push_back(ys.front());
+//         }
+
+//         std::map<std::string, std::string> keywords;
+//         keywords["color"] = "gray";
+//         keywords["alpha"] = "0.3";
+//         plt::fill(xs, ys, keywords);
+//     }
+    
+//     // 2. 绘制上层规划的脚步
+//     // std::vector<double> upper_x, upper_y;
+//     // for (int i = 0; i < N; ++i) {
+//     //     upper_x.push_back(footsteps[i][0].get(GRB_DoubleAttr_X));
+//     //     upper_y.push_back(footsteps[i][1].get(GRB_DoubleAttr_X));
+//     // }
+//     // plt::plot(upper_x, upper_y, "ro-", {{"label", "Upper Layer Path"}}); // 红色圆点线
+
+//     // // 3. 绘制下层规划的脚步
+//     // std::vector<double> lower_x, lower_y;
+//     // // 添加初始支撑脚
+//     // lower_x.push_back(initial_stance_footsteps(0, 1));
+//     // lower_y.push_back(initial_stance_footsteps(1, 1));
+//     // for (int n = 0; n < N - 2; ++n) {
+//     //     lower_x.push_back(p_foot_vars[n][0].get(GRB_DoubleAttr_X));
+//     //     lower_y.push_back(p_foot_vars[n][1].get(GRB_DoubleAttr_X));
+//     // }
+//     // plt::plot(lower_x, lower_y, "bs--", {{"label", "Lower Layer Path"}}); // 蓝色方块虚线
+
+//     // 设置坐标轴、图例等
+//     // plt::xlabel("X (m)");
+//     // plt::ylabel("Y (m)");
+//     // plt::legend();
+//     // plt::grid(true);
+//     // plt::axis("equal");
+
+//     // 最后调用 show
+//     plt::show();
+// }
+
 void doublelayer_planning::run()
 {
     initial_env();
@@ -1015,14 +1228,29 @@ void doublelayer_planning::run()
     for (int i = 0; i < centroids.size() - 1; i++)
     {
         centroids_velocity.emplace_back((centroids[i+1] - centroids[i]) / (T_ss + T_ds));
-        std::cout<<"velocity "<<i<<": "<<centroids_velocity[i].x()<<", "<<centroids_velocity[i].y()<<std::endl;
+        // std::cout<<"velocity "<<i<<": "<<centroids_velocity[i].x()<<", "<<centroids_velocity[i].y()<<std::endl;
     }
     // Add lower layer variables and constraints here
     add_lower_layer_variables();
     add_lower_layer_constraints();
     solve_lower_layer();
     
-    
+    // 画出多边形
+    // for (auto & ploy : polygons)
+    // {
+    //     vector<double> xs, ys;
+    //     for (const auto& vertex : ploy.vertices) 
+    //     {
+    //         xs.push_back(vertex.x());
+    //         ys.push_back(vertex.y());
+    //     }
+    //     std::map<std::string, std::string> keywords;
+    //     keywords["color"] = "blue";
+    //     keywords["alpha"] = "0.5"; // 50% 的透明度
+    //     plt::fill(xs, ys, keywords);
+    // }
+    // plt::show();
+    // plot_results();
 }
 doublelayer_planning::~doublelayer_planning()
 {

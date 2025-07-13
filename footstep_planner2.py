@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
 		# Create variables
 		# Create N footstep variables (x,y,theta,s,c)
-		N = 18
+		N = 17
 		footsteps = [m.addVars(5,lb=-5,name="F"+str(i)) for i in range(0,N)]
 
 		# Trig approx functions

@@ -35,11 +35,16 @@ include_directories(include)
 # find_package(glog REQUIRED)
 
 # --- Matplotlib-cpp (requires Python) ---
-find_package(Python3 3.8 EXACT REQUIRED COMPONENTS Interpreter Development NumPy)
+# find_package(Python3 3.8 EXACT REQUIRED COMPONENTS Interpreter Development.Embed NumPy)
+find_package(Python3 3.8 EXACT COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 3.8 EXACT COMPONENTS NumPy)
+find_package(PythonLibs REQUIRED)
+
 # matplotlib-cpp.h should be in your include path or project directory
 # For simplicity, assuming it's in the same directory as CMakeLists.txt or a known include path
 # include_directories(${CMAKE_CURRENT_SOURCE_DIR}) # If matplotlibcpp.h is here
 include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${Python3_INCLUDE_DIRS})
 if(UNIX AND NOT APPLE)
   find_package(Threads REQUIRED)
 endif()
@@ -48,15 +53,20 @@ add_executable(footstep_planner2 footstep_planar2.cpp)
 add_executable(model_plannar model_plannar.cpp)
 add_executable(model_plannar_ankle model_plannar_ankle.cpp)
 add_executable(doublelayer_planning src/doublelayer_planning.cpp src/main.cpp)
+add_executable(monolithic_planning src/monolithic_planner.cpp src/monolithic_main.cpp)
 
 # add_executable(model_palnar_v1 model_palnar_v1.cpp)
+
+add_executable(plot_test src/test_plot.cpp)
 
 target_link_libraries(model_plannar_ankle
     PRIVATE
     ${GUROBI_LIBRARY}
     ${GUROBI_CXX_LIBRARY}
     Eigen3::Eigen # Modern Eigen usage
-    Python3::Python # For matplotlib-cpp
+    # Python3::Python # For matplotlib-cpp
+    # Python::Embed
+    ${PYTHON_LIBRARIES}
     # golg::glog # Google Logging
     # Add pthread on Linux if matplotlib-cpp requires it (often does)
     # $<$<PLATFORM_ID:Linux>:Threads::Threads> # Or just -pthread
@@ -68,7 +78,8 @@ target_link_libraries(model_plannar
     ${GUROBI_LIBRARY}
     ${GUROBI_CXX_LIBRARY}
     Eigen3::Eigen # Modern Eigen usage
-    Python3::Python # For matplotlib-cpp
+    ${PYTHON_LIBRARIES}
+    # Python3::Python # For matplotlib-cpp
     # golg::glog # Google Logging
     # Add pthread on Linux if matplotlib-cpp requires it (often does)
     # $<$<PLATFORM_ID:Linux>:Threads::Threads> # Or just -pthread
@@ -79,12 +90,32 @@ target_link_libraries(doublelayer_planning
     ${GUROBI_LIBRARY}
     ${GUROBI_CXX_LIBRARY}
     Eigen3::Eigen # Modern Eigen usage
-    Python3::Python # For matplotlib-cpp
+    ${PYTHON_LIBRARIES}
+    # Python3::Python # For matplotlib-cpp
+    # Python::Embed
     # golg::glog # Google Logging
     # Add pthread on Linux if matplotlib-cpp requires it (often does)
     # $<$<PLATFORM_ID:Linux>:Threads::Threads> # Or just -pthread
 )
 
+target_link_libraries(monolithic_planning
+    PRIVATE
+    ${GUROBI_LIBRARY}
+    ${GUROBI_CXX_LIBRARY}
+    Eigen3::Eigen # Modern Eigen usage
+    ${PYTHON_LIBRARIES}
+    # Python3::Python # For matplotlib-cpp
+    # Python::Embed
+    # golg::glog # Google Logging
+    # Add pthread on Linux if matplotlib-cpp requires it (often does)
+    # $<$<PLATFORM_ID:Linux>:Threads::Threads> # Or just -pthread
+)
+
+
+target_link_libraries(plot_test 
+PRIVATE
+${PYTHON_LIBRARIES}
+)
 # target_link_libraries(model_palnar_v1
 #     PRIVATE
 #     ${GUROBI_LIBRARY}
