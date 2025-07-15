@@ -26,11 +26,11 @@ private:
     double T_ss_dt;
 
     // IMPORTANT: Reduced horizon for tractability
-    const int N = 14; 
+    const int N = 10; 
     int N_REG = 5;
     const double M_BIG = 50.0;
 
-    double deta1 = 0.05, deta2 = 0.55, dis_th = 0.43;
+    double deta1 = 0.05, deta2 = 0.55, dis_th = 0.42;
 
     // --- ALIP Matrices ---
     Eigen::Matrix4d A_c_autonomous;

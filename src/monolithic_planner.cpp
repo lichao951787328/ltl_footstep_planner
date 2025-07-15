@@ -4,6 +4,7 @@
 #include <fstream> 
 // #include <fstream>
 // --- polygon3D Implementation ---
+#define USE_MIQP
 std::pair<Eigen::MatrixX3d, Eigen::VectorXd> polygon3D::calculateCoefficients() {
     Eigen::MatrixX3d F;
     Eigen::VectorXd C;
@@ -173,7 +174,7 @@ void MonolithicPlanner::add_constraints()
 
 // 这是根据初始状态和落脚点来反解初始角动量的约束，是一个理想的值。后续如果在后续中要遇到实时规划，直接将其替换成控制端给定的状态
     
-#ifdef USE_MIQP
+#ifndef USE_MIQP
     // 1. 固定真正的初始条件：质心位置 (ALIP state 的 x 和 y)
     model.addConstr(x_alip_vars[0][0][0] == initial_alip_x(0), "init_x_pos");
     model.addConstr(x_alip_vars[0][0][1] == initial_alip_x(1), "init_y_pos");
@@ -292,6 +293,22 @@ void MonolithicPlanner::add_constraints()
         model.addConstr(z_diff >= -0.18, "z_diff_lower_c" + std::to_string(c));
     }
     
+    // 添加约束，两脚之间的间距必须大于14cm，不是距离，而是，两脚在机器人侧向的间距，
+    // for (int c = 2; c < N; ++c) 
+    // {
+    //     GRBQuadExpr lateral_distance = (p_foot_vars[c][1] - p_foot_vars[c-1][1]) * cos_vars[c-1] - 
+    //                                    (p_foot_vars[c][0] - p_foot_vars[c-1][0]) * sin_vars[c-1];
+    //     if (c % 2 == 0) // 左脚
+    //     {
+    //         model.addQConstr(lateral_distance <= -0.132, "lateral_dist_left_c" + std::to_string(c));
+    //     } 
+    //     else // 右脚
+    //     {
+    //         model.addQConstr(lateral_distance >= 0.132, "lateral_dist_right_c" + std::to_string(c));
+    //     }
+    // }
+
+
     // Sin approximation constraints
     std::vector<std::tuple<double, double, double, double>> sin_params = {
         {-M_PI, 1 - M_PI, -1, -M_PI},
@@ -379,7 +396,7 @@ void MonolithicPlanner::add_constraints()
             model.addConstr(delta_theta >= -M_PI / 15.0, "max_rot_neg_right_c" + std::to_string(c));
         }
     }
-#ifdef USE_MIQP
+#ifndef USE_MIQP
     // --- ALIP Dynamics ---
     for (int n = 0; n < N - 2; ++n) 
     {
@@ -413,16 +430,22 @@ void MonolithicPlanner::set_objective()
     GRBQuadExpr objective = 0;
     
     // 1. Terminal cost
-    std::array<double, 3> g_target = {3.0, 0.6, 0.05};
+    std::array<double, 3> g_target = {1.5, 0.3, 0.05};
     // GRBLinExpr e0 = p_foot_vars[N-1][0] - g_target[0];
     // GRBLinExpr e1 = p_foot_vars[N-1][1] - g_target[1] ;
     // objective += 200 * (e0*e0 + e1*e1);
     
-    double target_theta = M_PI / 4.0;
+    double target_theta = M_PI / 8.0;
     GRBLinExpr e3 = theta_vars[N - 1] - target_theta;
     GRBLinExpr e4 = theta_vars[N - 2] - target_theta;
 
-    
+    // Add smoothness constraints for theta_vars
+    for (int c = 2; c < N - 1; ++c) {
+        GRBLinExpr delta_theta_prev = theta_vars[c - 1] - theta_vars[c - 2];
+        GRBLinExpr delta_theta_curr = theta_vars[c] - theta_vars[c - 1];
+        GRBLinExpr smoothness_constraint = delta_theta_curr - delta_theta_prev;
+        objective += 10 * smoothness_constraint * smoothness_constraint;
+    }
 
 
 
@@ -454,11 +477,11 @@ void MonolithicPlanner::set_objective()
         GRBLinExpr dy = p_foot_vars[c][1] - p_foot_vars[c-1][1];
         objective += 0.5 * (dx*dx + dy*dy);
     }
-#ifdef USE_MIQP
+#ifndef USE_MIQP
     // 3. Ankle torque cost
     for (int n = 0; n < N - 2; ++n) {
         for (int k = 0; k < K_knots-1; ++k) {
-            objective += 0.1 * (u_ankle_vars[n][k]*u_ankle_vars[n][k] + v_ankle_vars[n][k]*v_ankle_vars[n][k]);
+            objective += 5 * (u_ankle_vars[n][k]*u_ankle_vars[n][k] + v_ankle_vars[n][k]*v_ankle_vars[n][k]);
         }
     }
 #endif
